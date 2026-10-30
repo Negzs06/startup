@@ -1,76 +1,104 @@
-/** Tipos centrais do domínio RefactorPulse. */
+export type Gateway = "stripe" | "adyen" | "braintree";
+export type Network = "visa" | "mastercard";
 
-export type MigrationTargetId =
-  | "js-to-ts-strict"
-  | "java8-to-java21-spring"
-  | "py2-to-py312";
+export type DisputeStatus =
+  | "new"
+  | "ready"
+  | "submitted"
+  | "won"
+  | "lost"
+  | "accepted";
 
-export interface MigrationTarget {
-  id: MigrationTargetId;
-  label: string;
-  from: string;
-  to: string;
-  description: string;
-}
+export type DataElement = "ip" | "deviceId" | "accountId" | "shippingAddress";
 
-export type SourceMode = "github" | "upload";
-
-export interface RepoSource {
-  mode: SourceMode;
-  name: string;
-  branch?: string;
-  fileCount?: number;
-}
-
-export type AgentId = "mapper" | "tester" | "refactor" | "healer" | "done";
-
-export type AgentStatus = "pending" | "running" | "success" | "error" | "retrying";
-
-export interface AgentLogLine {
+export interface Transaction {
   id: string;
-  agentId: AgentId;
-  timestamp: string;
-  level: "info" | "success" | "warning" | "error" | "command";
-  message: string;
+  /** ISO-8601 timestamp. */
+  date: string;
+  amountCents: number;
+  currency: string;
+  ip: string;
+  deviceId: string;
+  accountId: string;
+  shippingAddress?: string;
+  /** True when this charge was itself disputed or refunded. */
+  disputed: boolean;
 }
 
-export interface AgentStepDefinition {
-  id: AgentId;
-  icon: "search" | "flask" | "zap" | "refresh" | "rocket";
+export type EvidenceSource = "auth0" | "posthog" | "zendesk" | "stripe" | "tos";
+
+export interface LogEntry {
+  at: string;
+  source: EvidenceSource;
+  text: string;
+}
+
+export interface TosClause {
+  id: string;
   title: string;
-  subtitle: string;
+  text: string;
 }
 
-export interface DiffHunkLine {
-  type: "context" | "added" | "removed";
-  oldLine?: number;
-  newLine?: number;
-  content: string;
+export interface Dispute {
+  id: string;
+  gateway: Gateway;
+  network: Network;
+  reasonCode: string;
+  reasonLabel: string;
+  amountCents: number;
+  currency: string;
+  createdAt: string;
+  /** ISO date by which the representment must be filed. */
+  dueBy: string;
+  status: DisputeStatus;
+  customer: { name: string; email: string; country: string };
+  issuer: { bank: string; country: string; language: string; languageName: string };
+  transaction: Transaction;
+  /** Prior transactions on the same card, any age. */
+  history: Transaction[];
+  /** Normalized log lines from Auth0, PostHog, Zendesk and the gateway. */
+  evidence: LogEntry[];
+  tos: TosClause[];
 }
 
-export interface DiffFile {
-  path: string;
-  language: string;
-  linesAdded: number;
-  linesRemoved: number;
-  oldCode: string;
-  newCode: string;
-  hunks: DiffHunkLine[];
+export interface Ce3Match {
+  transaction: Transaction;
+  ageDays: number;
+  matched: DataElement[];
 }
 
-export interface AuditDecision {
-  title: string;
-  detail: string;
-  kind: "architecture" | "dependency" | "test" | "safety";
+export interface Ce3Rejection {
+  transaction: Transaction;
+  ageDays: number;
+  reason: string;
 }
 
-export interface AuditReport {
-  summaryMarkdown: string;
-  decisions: AuditDecision[];
-  testsAdded: number;
-  coveragePercent: number;
-  dependenciesRemoved: string[];
-  dependenciesAdded: string[];
-  pullRequestUrl: string;
-  pullRequestNumber: number;
+export interface Ce3Result {
+  /** False for reason codes CE 3.0 does not apply to. */
+  applicable: boolean;
+  eligible: boolean;
+  required: number;
+  qualifying: Ce3Match[];
+  rejected: Ce3Rejection[];
+  summary: string;
+}
+
+export interface Dossier {
+  verdict: "contest" | "accept";
+  /** 0-1 estimate that the representment succeeds. */
+  confidence: number;
+  rationale: string;
+  timeline: { at: string; source: EvidenceSource; event: string }[];
+  clauses: { id: string; quote: string; relevance: string }[];
+  coverLetter: { language: string; english: string; localized: string };
+  risks: string[];
+}
+
+export interface AnalysisResult {
+  source: "claude" | "fixture";
+  model: string | null;
+  ce3: Ce3Result;
+  dossier: Dossier;
+  /** Set when the result is not a live Claude analysis, with the reason. */
+  note?: string;
 }

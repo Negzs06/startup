@@ -1,53 +1,57 @@
-# RefactorPulse
+# ChargeGuard AI
 
-MVP de uma plataforma SaaS B2B de modernização autônoma de código legado,
-construída com Next.js (App Router), TypeScript, Tailwind CSS e shadcn/UI.
+MVP of an autonomous chargeback-representment platform for SaaS and digital
+commerce merchants. A dispute arrives, ChargeGuard audits the evidence, asks
+Claude to build the dossier (timeline, contract clauses, cover letter in the
+issuing bank's language) and files it through the processor.
 
-O produto analisa repositórios legados, gera testes de caracterização,
-refatora o código com agentes de IA (Claude) em um loop de self-healing e
-abre um Pull Request limpo com relatório de auditoria arquitetural.
+Built with Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui and the
+Anthropic SDK.
 
-## Rodando localmente
+## Run it
 
 ```bash
 npm install
-npm run dev
+npm run dev        # http://localhost:3000 (landing) and /dashboard
+npm test           # CE 3.0 engine + Stripe webhook tests
+npm run typecheck
 ```
 
-Abra [http://localhost:3000](http://localhost:3000) para a landing page, ou
-[http://localhost:3000/dashboard](http://localhost:3000/dashboard) para o
-workspace de migração.
+Without configuration the dashboard runs on demo data and a rule-based
+dossier. Set these to go live:
 
-## Estrutura do projeto
+| Variable | Purpose |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Enables the Claude analysis (`src/lib/analyze.ts`). |
+| `CHARGEGUARD_MODEL` | Optional model override; defaults to `claude-opus-5-5`. |
+| `STRIPE_WEBHOOK_SECRET` | Required by `POST /api/webhooks/stripe`; it returns 503 without it. |
+
+## Layout
 
 ```
-src/
-  app/
-    page.tsx                 # Landing page B2B
-    dashboard/page.tsx        # Workspace (orquestra os 4 steps)
-  components/
-    landing/                  # Seções da landing page
-    dashboard/                 # Step 1-4, pipeline de agentes, terminal, diff viewer
-    ui/                        # Componentes shadcn/UI
-  hooks/
-    use-agent-simulation.ts   # Simula o stream de logs dos agentes (SSE-like)
-  lib/
-    types.ts                  # Tipos de domínio
-    mock-data.ts               # Dados de demonstração (alvo de migração, logs, diffs, auditoria)
-    diff.ts                    # Diff de linhas (LCS) para o visualizador side-by-side
+src/lib/ce3.ts             Visa Compelling Evidence 3.0 audit (deterministic)
+src/lib/analyze.ts         Claude call with a zod-validated dossier schema
+src/lib/fixtures.ts        Offline dossier builder (demo / fallback)
+src/lib/stripe-webhook.ts  Signature verification + dispute normalization
+src/lib/disputes.ts        Demo disputes and portfolio figures
+src/app/api/disputes/[id]/analyze   POST: run the analysis for a dispute
+src/app/api/webhooks/stripe         POST: charge.dispute.created receiver
+src/components/dashboard/  Queue, case view, KPI row
+src/components/landing/    Marketing page
 ```
 
-## Fluxo do Dashboard
+## What is real and what is a stub
 
-1. **Fonte** — conectar repositório via GitHub (mock) ou enviar um ZIP.
-2. **Configuração** — escolher o stack de destino da migração.
-3. **Execução** — acompanhar em tempo real os agentes (mapeamento de AST,
-   testes de caracterização, refatoração e o loop de self-healing).
-4. **Resultados** — visualizador de diff lado a lado e relatório de
-   auditoria arquitetural, com link para o Pull Request.
-
-> Os dados de execução (logs, diffs, relatório) são mockados em
-> `src/lib/mock-data.ts` para fins de demonstração. A integração real com o
-> Anthropic SDK, GitHub API e a sandbox de testes fica no backend
-> (API Routes / Server Actions), consumindo o mesmo contrato de tipos
-> definido em `src/lib/types.ts`.
+- **Real:** CE 3.0 audit, Stripe signature verification, the Claude request
+  and its schema-validated response.
+- **Stubs:** there is no database, so webhooks are verified and normalized but
+  not stored; the Auth0, PostHog and Zendesk connectors are represented by
+  the normalized records in `src/lib/disputes.ts`; "Submit" is simulated and
+  never calls a processor's Dispute API. The Claude path has not been run
+  against the live API in this repo; only the offline fallback is exercised.
+- The CE 3.0 rules are a simplified reading (two undisputed prior
+  transactions, 120-365 days old, sharing IP or device ID plus one more
+  element). Verify them against the current Visa rules before filing real
+  evidence.
+- The analyze route is unauthenticated and only accepts the demo dispute IDs;
+  add auth and per-merchant scoping before it serves real data.

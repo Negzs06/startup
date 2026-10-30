@@ -14,15 +14,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RefactorPulse — Modernização autônoma de código legado",
+  title: "ChargeGuard AI — Autonomous chargeback recovery",
   description:
-    "Plataforma de modernização de código legado com agentes de IA: testes de caracterização, refatoração e Pull Requests seguros, powered by Claude.",
+    "ChargeGuard AI assembles bank-grade dispute evidence with Claude and files it within hours, so SaaS merchants win back friendly-fraud chargebacks.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="pt-BR"
+      lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

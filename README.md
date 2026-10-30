@@ -1,57 +1,128 @@
 # ChargeGuard AI
 
-MVP of an autonomous chargeback-representment platform for SaaS and digital
-commerce merchants. A dispute arrives, ChargeGuard audits the evidence, asks
-Claude to build the dossier (timeline, contract clauses, cover letter in the
-issuing bank's language) and files it through the processor.
+Prototype of autonomous chargeback representment for SaaS and digital commerce.
+A dispute webhook opens a case; ChargeGuard audits the transaction history
+(Visa Compelling Evidence 3.0), asks Claude to build the evidence dossier —
+verdict, chronological timeline, highlighted Terms of Service clauses and a
+cover letter in the issuing bank's language — and (eventually) files it through
+the processor's Dispute API.
 
-Built with Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui and the
-Anthropic SDK.
+Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4,
+shadcn/ui-style components on Radix, the Anthropic TypeScript SDK and zod.
 
-## Run it
+## Running it
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000 (landing) and /dashboard
-npm test           # CE 3.0 engine + Stripe webhook tests
-npm run typecheck
+npm run dev          # http://localhost:3000 — landing page; /dashboard for the app
+npm test             # unit tests (node:test via tsx)
+npm run typecheck    # next typegen + tsc
+npm run lint
+npm run build
 ```
 
-Without configuration the dashboard runs on demo data and a rule-based
-dossier. Set these to go live:
+With no configuration the app runs on demo data and a rule-based dossier.
+Copy `.env.example` to `.env.local` to enable the rest:
 
 | Variable | Purpose |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | Enables the Claude analysis (`src/lib/analyze.ts`). |
-| `CHARGEGUARD_MODEL` | Optional model override; defaults to `claude-opus-5-5`. |
-| `STRIPE_WEBHOOK_SECRET` | Required by `POST /api/webhooks/stripe`; it returns 503 without it. |
+| `ANTHROPIC_API_KEY` | Enables Claude analysis in `POST /api/disputes/[id]/analyze`. Without it the route returns the rule-based dossier and says why. |
+| `CHARGEGUARD_MODEL` | Optional model override. Defaults to `claude-opus-5-5`. |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret for `POST /api/webhooks/stripe`. The route returns 503 without it. |
+
+## What is real and what is a stub
+
+**Real and tested**
+
+- **Visa CE 3.0 audit** (`src/lib/ce3/audit.ts`) — deterministic and unit-tested.
+  It is a *simplified reading* that must be verified against the current Visa
+  rules before real evidence is filed: Visa 10.4 only; at least two prior
+  transactions that were never disputed and are 120–365 days older than the
+  disputed one (both bounds inclusive); each sharing at least two of IP
+  address, device ID, account ID and shipping address with the disputed
+  transaction, one of which must be the IP address or device ID.
+- **Stripe webhook** (`src/lib/stripe/webhook.ts`, `src/app/api/webhooks/stripe`) —
+  real `Stripe-Signature` verification (HMAC-SHA256 over `t.payload`, 300 s
+  timestamp tolerance, constant-time comparison, multiple `v1` signatures
+  accepted for secret rotation) and normalization of `charge.dispute.created`
+  into a dispute record. The network reason code is taken from Stripe when it
+  is passed through, otherwise inferred from Stripe's reason and marked
+  `inferred`; unsupported codes are left unmapped.
+- **Claude analysis** (`src/lib/analysis/`) — one Messages API call with
+  adaptive thinking and structured output validated by a zod schema. The
+  pipeline:
+  - CE 3.0 and other deterministic signals (refund requests vs. the refund
+    window, usage after the charge, known-device and strong-auth logins) are
+    computed in code and given to Claude as facts.
+  - The cardholder claim and support tickets go into a separate
+    `<untrusted_customer_content>` block with `<` and `>` escaped; the system
+    prompt tells Claude to treat it as data and report instruction-like text.
+    Demo case CG-1046 contains such an injection attempt.
+  - `stop_reason` is checked before reading output: refusals (with the
+    `stop_details` category) and `max_tokens` truncation raise errors, as do
+    missing, non-JSON or schema-invalid output. The request opts into
+    server-side refusal fallback (`fallbacks: "default"`).
+  - The output is then **grounded** (`ground.ts`): timeline entries and
+    citations must reference real records (timestamps come from the record,
+    not the model), clauses must exist, highlights must be verbatim quotes,
+    and a contest verdict is overridden to *accept* when the merchant-fault
+    rule fires (an unanswered refund request inside the refund window).
+  - Any failure — or a missing API key — falls back to the rule-based
+    dossier, which the UI labels clearly along with the reason.
+
+**Stubbed / not built**
+
+- **No database.** Demo case files live in `src/lib/demo/`. Verified webhooks
+  are normalized and returned (`persisted: false`) but not stored, and do not
+  create cases in the dashboard.
+- **No live connectors.** Auth0, PostHog, Zendesk and Stripe charge history are
+  represented by the fixed records in the demo case files. Adyen and Braintree
+  are not implemented.
+- **Submission is simulated.** The "Submit to Stripe" / "Accept & refund"
+  buttons only show a notice; no processor API is called.
+- **The analyze route is unauthenticated** and only accepts demo case IDs. Add
+  authentication and per-merchant scoping before it touches real data.
+- **The live Claude call has not been exercised in this repository** (no API
+  key was available while building it). Its request shape follows the current
+  SDK, and the parsing, grounding and fallback paths are covered by tests with
+  an injected requester, but run it against the API before relying on it.
+- **Rule-based cover letters are templates** in German, Portuguese (Brazil),
+  Japanese, French and English. They have not been reviewed by native
+  speakers.
+- KPIs (win rate, time to submit, recovered amount, dispute rate vs. the 0.9%
+  threshold) are computed from demo history in `src/lib/demo/history.ts`.
+- Network rule summaries in `src/lib/domain/reason-codes.ts` are paraphrases,
+  not the network texts.
+- Unknown case URLs render the not-found page but with HTTP 200, because Cache
+  Components streams the page shell and `dynamicParams` is not available.
+- shadcn/ui components in `src/components/ui` were written by hand following
+  the shadcn source (the registry was not reachable from the build
+  environment); they use the `radix-ui` package.
+
+## Demo data
+
+Six open disputes for a fictional SaaS merchant, Lumen Analytics, as of
+28 Oct 2026. All people, banks and companies are fictional.
+
+| Case | Network / code | Issuer language | Expected verdict |
+| --- | --- | --- | --- |
+| CG-1041 | Visa 10.4 | German | Contest — CE 3.0 eligible, MFA login from known device |
+| CG-1042 | Visa 13.1 | Portuguese (BR) | Contest — heavy usage after purchase |
+| CG-1043 | Mastercard 4837 | Japanese | Contest — passkey login on registered device |
+| CG-1044 | Mastercard 4853 | French | **Accept** — refund asked 3 days after renewal, never answered |
+| CG-1045 | Visa 10.4 | French | Contest, low confidence — CE 3.0 not met (one qualifying transaction) |
+| CG-1046 | Mastercard 4853 | German | Contest — no cancellation, refund asked after the window; ticket contains a prompt-injection attempt |
 
 ## Layout
 
 ```
-src/lib/ce3.ts             Visa Compelling Evidence 3.0 audit (deterministic)
-src/lib/analyze.ts         Claude call with a zod-validated dossier schema
-src/lib/fixtures.ts        Offline dossier builder (demo / fallback)
-src/lib/stripe-webhook.ts  Signature verification + dispute normalization
-src/lib/disputes.ts        Demo disputes and portfolio figures
-src/app/api/disputes/[id]/analyze   POST: run the analysis for a dispute
-src/app/api/webhooks/stripe         POST: charge.dispute.created receiver
-src/components/dashboard/  Queue, case view, KPI row
-src/components/landing/    Marketing page
+src/lib/domain/        Types and reason-code catalog
+src/lib/ce3/           Visa CE 3.0 audit engine
+src/lib/stripe/        Webhook signature verification + normalization
+src/lib/analysis/      Signals, prompt, Claude call, grounding, rule-based dossier, letters
+src/lib/demo/          Demo case files, ToS, KPI history
+src/app/api/           analyze + Stripe webhook route handlers
+src/app/dashboard/     Queue + KPI page and case view
+src/components/        Landing, dashboard and ui components
+tests/                 CE 3.0, Stripe webhook, analysis and metrics tests
 ```
-
-## What is real and what is a stub
-
-- **Real:** CE 3.0 audit, Stripe signature verification, the Claude request
-  and its schema-validated response.
-- **Stubs:** there is no database, so webhooks are verified and normalized but
-  not stored; the Auth0, PostHog and Zendesk connectors are represented by
-  the normalized records in `src/lib/disputes.ts`; "Submit" is simulated and
-  never calls a processor's Dispute API. The Claude path has not been run
-  against the live API in this repo; only the offline fallback is exercised.
-- The CE 3.0 rules are a simplified reading (two undisputed prior
-  transactions, 120-365 days old, sharing IP or device ID plus one more
-  element). Verify them against the current Visa rules before filing real
-  evidence.
-- The analyze route is unauthenticated and only accepts the demo dispute IDs;
-  add auth and per-merchant scoping before it serves real data.

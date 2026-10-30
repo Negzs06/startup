@@ -1,25 +1,20 @@
-import { SiteHeader } from "@/components/landing/site-header";
-import { SiteFooter } from "@/components/landing/site-footer";
-import { HeroSection } from "@/components/landing/hero-section";
-import {
-  CtaSection,
-  FlowSection,
-  MetricsSection,
-  PricingSection,
-  ProblemSection,
-} from "@/components/landing/sections";
+import { Hero } from "@/components/landing/hero";
+import { FinalCta, HowItWorks, Pricing, Problem, StatsBand, Targets, WhyClaude } from "@/components/landing/sections";
+import { SiteFooter, SiteHeader } from "@/components/landing/site-chrome";
 
-export default function HomePage() {
+export default function Home() {
   return (
     <>
       <SiteHeader />
       <main className="flex-1">
-        <HeroSection />
-        <ProblemSection />
-        <FlowSection />
-        <PricingSection />
-        <MetricsSection />
-        <CtaSection />
+        <Hero />
+        <StatsBand />
+        <Problem />
+        <HowItWorks />
+        <WhyClaude />
+        <Targets />
+        <Pricing />
+        <FinalCta />
       </main>
       <SiteFooter />
     </>

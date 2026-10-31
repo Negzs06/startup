@@ -1,6 +1,6 @@
 // Deterministic facts derived from the case file. Both analysis paths use
 // them; the merchant-fault signal is also enforced as a hard policy on
-// Claude's verdict (see ground.ts).
+// the model's verdict (see ground.ts).
 
 import { daysBetween } from "@/lib/ce3/audit";
 import type { CaseFile } from "@/lib/domain/types";

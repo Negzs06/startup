@@ -1,10 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { analyzeCase, analyzeRuleBased } from "@/lib/analysis/analyze";
-import { AnalysisError } from "@/lib/analysis/claude";
+import { AnalysisError } from "@/lib/analysis/gemini";
 import { groundDossier } from "@/lib/analysis/ground";
 import { buildUserPrompt, encodeUntrusted } from "@/lib/analysis/prompt";
-import { ClaudeDossierSchema, type ClaudeDossier } from "@/lib/analysis/schema";
+import { DossierOutputSchema, type DossierOutput } from "@/lib/analysis/schema";
 import { computeSignals } from "@/lib/analysis/signals";
 import { auditCe3 } from "@/lib/ce3/audit";
 import { DEMO_CASES, DEMO_NOW, getDemoCase } from "@/lib/demo/cases";
@@ -60,10 +60,10 @@ describe("signals", () => {
 });
 
 describe("rule-based dossier", () => {
-  it("is shaped like the Claude schema and cites only real records", () => {
+  it("is shaped like the model output schema and cites only real records", () => {
     for (const c of DEMO_CASES) {
       const { dossier } = analyzeRuleBased(c, DEMO_NOW, null);
-      const asClaude: ClaudeDossier = {
+      const asOutput: DossierOutput = {
         verdict: dossier.verdict,
         reasonCodeSummary: dossier.reasonCodeSummary,
         requirements: dossier.requirements,
@@ -73,8 +73,8 @@ describe("rule-based dossier", () => {
         evidenceGaps: dossier.evidenceGaps,
         injectionFlags: dossier.injectionFlags,
       };
-      assert.ok(ClaudeDossierSchema.safeParse(asClaude).success, c.dispute.id);
-      const regrounded = groundDossier(asClaude, c, computeSignals(c));
+      assert.ok(DossierOutputSchema.safeParse(asOutput).success, c.dispute.id);
+      const regrounded = groundDossier(asOutput, c, computeSignals(c));
       assert.deepEqual(regrounded.guardrails, [], `${c.dispute.id}: ${regrounded.guardrails.join("; ")}`);
       for (const clause of dossier.clauses) assert.ok(clause.highlight && clause.text.includes(clause.highlight));
     }
@@ -113,7 +113,7 @@ describe("prompt", () => {
   });
 });
 
-function fakeOutput(overrides: Partial<ClaudeDossier> = {}): ClaudeDossier {
+function fakeOutput(overrides: Partial<DossierOutput> = {}): DossierOutput {
   return {
     verdict: { decision: "contest", confidence: "high", rationale: "Usage after purchase." },
     reasonCodeSummary: "Summary.",
@@ -166,11 +166,11 @@ describe("analyzeCase", () => {
   it("falls back to rule-based without an API key", async () => {
     const result = await analyzeCase(c, { generatedAt: DEMO_NOW, apiKey: undefined });
     assert.equal(result.source, "rule-based");
-    assert.match(result.fallbackReason ?? "", /ANTHROPIC_API_KEY/);
+    assert.match(result.fallbackReason ?? "", /GEMINI_API_KEY/);
   });
 
   it("falls back with the reason when the model refuses or truncates", async () => {
-    for (const error of [new AnalysisError("refusal", "declined (category: cyber)"), new AnalysisError("truncated", "hit max_tokens")]) {
+    for (const error of [new AnalysisError("refusal", "declined (category: cyber)"), new AnalysisError("truncated", "hit the token limit")]) {
       const result = await analyzeCase(c, {
         generatedAt: DEMO_NOW,
         apiKey: "test",
@@ -183,14 +183,14 @@ describe("analyzeCase", () => {
     }
   });
 
-  it("uses the grounded Claude output when the call succeeds", async () => {
+  it("uses the grounded model output when the call succeeds", async () => {
     const result = await analyzeCase(c, {
       generatedAt: DEMO_NOW,
       apiKey: "test",
-      requester: async () => ({ output: fakeOutput({ timeline: [{ ref: "ch_1041", title: "Charge", detail: "d", significance: "key" }], highlightedClauses: [] }), model: "claude-opus-5-5" }),
+      requester: async () => ({ output: fakeOutput({ timeline: [{ ref: "ch_1041", title: "Charge", detail: "d", significance: "key" }], highlightedClauses: [] }), model: "gemini-test-model" }),
     });
-    assert.equal(result.source, "claude");
-    assert.equal(result.model, "claude-opus-5-5");
+    assert.equal(result.source, "ai");
+    assert.equal(result.model, "gemini-test-model");
     assert.equal(result.dossier.coverLetter.language, "de");
     assert.equal(result.ce3.applicable && result.ce3.eligible, true);
   });

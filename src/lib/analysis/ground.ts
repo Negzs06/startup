@@ -1,13 +1,13 @@
-// Grounds Claude's structured output in the case file: anything that cannot
+// Grounds the model's structured output in the case file: anything that cannot
 // be traced back to a real record is dropped and reported as a guardrail.
 
 import type { CaseFile } from "@/lib/domain/types";
 import { buildEvidenceIndex } from "./evidence";
-import type { ClaudeDossier, Dossier, HighlightedClause, TimelineEntry } from "./schema";
+import type { DossierOutput, Dossier, HighlightedClause, TimelineEntry } from "./schema";
 import type { CaseSignals } from "./signals";
 
 export function groundDossier(
-  output: ClaudeDossier,
+  output: DossierOutput,
   caseFile: CaseFile,
   signals: CaseSignals,
 ): { dossier: Dossier; guardrails: string[] } {

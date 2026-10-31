@@ -19,7 +19,7 @@ export function DisputeQueue({ rows, now }: { rows: QueueRow[]; now: string }) {
     <Card className="gap-0 pb-0">
       <CardHeader className="pb-4">
         <CardTitle>Dispute queue</CardTitle>
-        <CardDescription>Open disputes from Stripe, ordered by evidence deadline. Recommendations are rule-based previews until Claude analysis runs.</CardDescription>
+        <CardDescription>Open disputes from Stripe, ordered by evidence deadline. Recommendations are rule-based previews until the AI analysis runs.</CardDescription>
       </CardHeader>
       <Table>
         <TableHeader>

@@ -1,5 +1,5 @@
 import { Hero } from "@/components/landing/hero";
-import { FinalCta, HowItWorks, Pricing, Problem, StatsBand, Targets, WhyClaude } from "@/components/landing/sections";
+import { FinalCta, HowItWorks, Pricing, Problem, StatsBand, Targets, WhyGemini } from "@/components/landing/sections";
 import { SiteFooter, SiteHeader } from "@/components/landing/site-chrome";
 
 export default function Home() {
@@ -11,7 +11,7 @@ export default function Home() {
         <StatsBand />
         <Problem />
         <HowItWorks />
-        <WhyClaude />
+        <WhyGemini />
         <Targets />
         <Pricing />
         <FinalCta />

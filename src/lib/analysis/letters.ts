@@ -1,5 +1,5 @@
 // Template cover letters for the rule-based path, in each supported issuer
-// language. Claude writes free-form letters; these exist so the product still
+// language. The model writes free-form letters; these exist so the product still
 // produces a usable, clearly labelled draft without a model call.
 
 import type { IssuerLanguage } from "@/lib/domain/types";

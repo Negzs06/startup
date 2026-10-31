@@ -4,7 +4,7 @@ import type { CaseFile } from "@/lib/domain/types";
 import { buildEvidenceIndex } from "./evidence";
 import type { CaseSignals } from "./signals";
 
-// Stable across requests so it can be cached; nothing case-specific goes here.
+// Stable across requests; nothing case-specific goes here.
 export const SYSTEM_PROMPT = `You are the forensic analyst inside ChargeGuard, which prepares chargeback representment packages for SaaS merchants. A human may never review your output before it is filed with a card network, so precision matters more than persuasion.
 
 Your job for each case:
@@ -49,7 +49,7 @@ export function buildUserPrompt(caseFile: CaseFile, ce3: Ce3Audit, signals: Case
     ce3Audit: ce3,
     deterministicSignals: {
       ...signals,
-      // The injection scan is ours; let Claude report its own findings independently.
+      // The injection scan is ours; let the model report its own findings independently.
       injectionAttempts: undefined,
     },
     evidenceIndex: [...buildEvidenceIndex(caseFile).values()],

@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { analyzeCase } from "@/lib/analysis/analyze";
 import { getDemoCase } from "@/lib/demo/cases";
 
-// A Claude analysis with adaptive thinking can take a while.
+// A model analysis with extended reasoning can take a while.
 export const maxDuration = 300;
 
 // NOTE: unauthenticated and limited to the demo case files. Add auth and
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/dispute
 
   const result = await analyzeCase(caseFile, {
     generatedAt: new Date().toISOString(),
-    apiKey: process.env.ANTHROPIC_API_KEY,
+    apiKey: process.env.GEMINI_API_KEY,
     ruleBasedOnly: request.nextUrl.searchParams.get("mode") === "rule-based",
   });
   return Response.json(result);

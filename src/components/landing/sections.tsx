@@ -109,8 +109,8 @@ const STEPS = [
   {
     icon: Scale,
     step: "b",
-    title: "Forensic synthesis with Claude",
-    body: "Claude reads session logs, chat transcripts and your full Terms of Service, evaluates them against the network rule for the reason code and decides whether to contest or accept.",
+    title: "Forensic synthesis with Gemini",
+    body: "Gemini reads session logs, chat transcripts and your full Terms of Service, evaluates them against the network rule for the reason code and decides whether to contest or accept.",
     detail: ["Visa 10.4 · 13.1, Mastercard 4837 · 4853", "Deterministic CE 3.0 audit of transaction history", "Chronological dossier + highlighted contract clauses", "Cover letter in the issuing bank's language"],
   },
   {
@@ -165,13 +165,13 @@ const WHY = [
   { icon: Lock, title: "Grounded and guarded", body: "Structured, schema-validated output. Every cited record and quoted clause is checked against source data; CE 3.0 is computed deterministically; customer text is treated as untrusted." },
 ];
 
-export function WhyClaude() {
+export function WhyGemini() {
   return (
-    <section id="why-claude" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-      <SectionHeading eyebrow="Why Claude" title="Judgment where it matters, determinism where it must be exact">
-        Claude does what templates cannot: read messy, multilingual evidence and argue it the way an experienced
+    <section id="why-gemini" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <SectionHeading eyebrow="Why Gemini" title="Judgment where it matters, determinism where it must be exact">
+        Gemini does what templates cannot: read messy, multilingual evidence and argue it the way an experienced
         dispute analyst would. Everything that can be computed — eligibility windows, data-element matches,
-        timestamps — is computed in code and handed to Claude as fact.
+        timestamps — is computed in code and handed to Gemini as fact.
       </SectionHeading>
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         {WHY.map(({ icon: Icon, title, body }) => (

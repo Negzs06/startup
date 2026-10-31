@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 const NAV = [
   ["Problem", "#problem"],
   ["How it works", "#how-it-works"],
-  ["Why Claude", "#why-claude"],
+  ["Why Gemini", "#why-gemini"],
   ["Pricing", "#pricing"],
 ] as const;
 

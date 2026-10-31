@@ -1,5 +1,5 @@
 // Rule-based dossier: deterministic, no model call. Used for the demo when no
-// ANTHROPIC_API_KEY is configured and as the fallback when the Claude call
+// GEMINI_API_KEY is configured and as the fallback when the model call
 // fails. Its output is labelled as rule-based throughout the UI.
 
 import type { Ce3Audit } from "@/lib/ce3/audit";
@@ -7,10 +7,10 @@ import { REASON_CODES } from "@/lib/domain/reason-codes";
 import type { CaseFile } from "@/lib/domain/types";
 import { buildEvidenceIndex, TOS_ACCEPTANCE_REF } from "./evidence";
 import { writeLetter, type LetterFact } from "./letters";
-import type { ClaudeDossier, Dossier, HighlightedClause, TimelineEntry } from "./schema";
+import type { DossierOutput, Dossier, HighlightedClause, TimelineEntry } from "./schema";
 import type { CaseSignals } from "./signals";
 
-type Requirement = ClaudeDossier["requirements"][number];
+type Requirement = DossierOutput["requirements"][number];
 
 const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 

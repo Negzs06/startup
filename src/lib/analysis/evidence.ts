@@ -10,7 +10,7 @@ export interface EvidenceItem {
 export const TOS_ACCEPTANCE_REF = "tos-acceptance";
 
 /**
- * Every record the dossier may cite, keyed by a stable ID. Claude must cite
+ * Every record the dossier may cite, keyed by a stable ID. The model must cite
  * these IDs; timestamps and sources always come from here, never from the model.
  */
 export function buildEvidenceIndex(caseFile: CaseFile): Map<string, EvidenceItem> {

@@ -2,13 +2,13 @@
 
 Prototype of autonomous chargeback representment for SaaS and digital commerce.
 A dispute webhook opens a case; ChargeGuard audits the transaction history
-(Visa Compelling Evidence 3.0), asks Claude to build the evidence dossier —
+(Visa Compelling Evidence 3.0), asks Gemini to build the evidence dossier —
 verdict, chronological timeline, highlighted Terms of Service clauses and a
 cover letter in the issuing bank's language — and (eventually) files it through
 the processor's Dispute API.
 
 Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4,
-shadcn/ui-style components on Radix, the Anthropic TypeScript SDK and zod.
+shadcn/ui-style components on Radix, the Google Gen AI SDK (`@google/genai`) and zod.
 
 ## Running it
 
@@ -26,8 +26,8 @@ Copy `.env.example` to `.env.local` to enable the rest:
 
 | Variable | Purpose |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | Enables Claude analysis in `POST /api/disputes/[id]/analyze`. Without it the route returns the rule-based dossier and says why. |
-| `CHARGEGUARD_MODEL` | Optional model override. Defaults to `claude-opus-5-5`. |
+| `GEMINI_API_KEY` | Enables the Gemini analysis in `POST /api/disputes/[id]/analyze` (create a key in Google AI Studio). Without it the route returns the rule-based dossier and says why. |
+| `GEMINI_MODEL` | Optional model override. Defaults to `gemini-3.5-flash`; Gemini model IDs change often, so confirm it against the models your key can use. |
 | `STRIPE_WEBHOOK_SECRET` | Signing secret for `POST /api/webhooks/stripe`. The route returns 503 without it. |
 
 ## What is real and what is a stub
@@ -48,20 +48,19 @@ Copy `.env.example` to `.env.local` to enable the rest:
   into a dispute record. The network reason code is taken from Stripe when it
   is passed through, otherwise inferred from Stripe's reason and marked
   `inferred`; unsupported codes are left unmapped.
-- **Claude analysis** (`src/lib/analysis/`) — one Messages API call with
-  adaptive thinking and structured output validated by a zod schema. The
-  pipeline:
+- **Gemini analysis** (`src/lib/analysis/`) — one `generateContent` call in
+  JSON mode, with the response schema derived from the zod schema that
+  validates the reply. The pipeline:
   - CE 3.0 and other deterministic signals (refund requests vs. the refund
     window, usage after the charge, known-device and strong-auth logins) are
-    computed in code and given to Claude as facts.
+    computed in code and given to the model as facts.
   - The cardholder claim and support tickets go into a separate
     `<untrusted_customer_content>` block with `<` and `>` escaped; the system
-    prompt tells Claude to treat it as data and report instruction-like text.
+    prompt tells the model to treat it as data and report instruction-like text.
     Demo case CG-1046 contains such an injection attempt.
-  - `stop_reason` is checked before reading output: refusals (with the
-    `stop_details` category) and `max_tokens` truncation raise errors, as do
-    missing, non-JSON or schema-invalid output. The request opts into
-    server-side refusal fallback (`fallbacks: "default"`).
+  - The stop reason is checked before reading output: blocked prompts and
+    safety finish reasons count as refusals, and token-limit truncation raises
+    an error, as do missing, non-JSON or schema-invalid output.
   - The output is then **grounded** (`ground.ts`): timeline entries and
     citations must reference real records (timestamps come from the record,
     not the model), clauses must exist, highlights must be verbatim quotes,
@@ -82,10 +81,12 @@ Copy `.env.example` to `.env.local` to enable the rest:
   buttons only show a notice; no processor API is called.
 - **The analyze route is unauthenticated** and only accepts demo case IDs. Add
   authentication and per-merchant scoping before it touches real data.
-- **The live Claude call has not been exercised in this repository** (no API
-  key was available while building it). Its request shape follows the current
-  SDK, and the parsing, grounding and fallback paths are covered by tests with
-  an injected requester, but run it against the API before relying on it.
+- **The live Gemini call has not been exercised in this repository** (no API
+  key was available while building it). The request is checked against the real
+  SDK talking to a local stand-in server, and the parsing, grounding and
+  fallback paths are covered by tests, but the default model ID and Gemini's
+  acceptance of the response schema are unverified: run it with a real key
+  before relying on it.
 - **Rule-based cover letters are templates** in German, Portuguese (Brazil),
   Japanese, French and English. They have not been reviewed by native
   speakers.
@@ -119,7 +120,7 @@ Six open disputes for a fictional SaaS merchant, Lumen Analytics, as of
 src/lib/domain/        Types and reason-code catalog
 src/lib/ce3/           Visa CE 3.0 audit engine
 src/lib/stripe/        Webhook signature verification + normalization
-src/lib/analysis/      Signals, prompt, Claude call, grounding, rule-based dossier, letters
+src/lib/analysis/      Signals, prompt, Gemini call, grounding, rule-based dossier, letters
 src/lib/demo/          Demo case files, ToS, KPI history
 src/app/api/           analyze + Stripe webhook route handlers
 src/app/dashboard/     Queue + KPI page and case view

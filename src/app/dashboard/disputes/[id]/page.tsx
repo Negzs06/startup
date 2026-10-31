@@ -18,6 +18,6 @@ export default async function DisputePage({ params }: PageProps<"/dashboard/disp
   const caseFile = getDemoCase(id);
   if (!caseFile) notFound();
 
-  const initial = analyzeRuleBased(caseFile, DEMO_NOW, "Preview computed without a model call. Run Claude analysis for the full dossier.");
+  const initial = analyzeRuleBased(caseFile, DEMO_NOW, "Preview computed without a model call. Run the AI analysis for the full dossier.");
   return <CaseWorkspace caseFile={caseFile} initial={initial} now={DEMO_NOW} />;
 }

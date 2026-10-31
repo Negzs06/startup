@@ -1,6 +1,8 @@
 # ChargeGuard AI — Contexto do projeto
 
-Documento de referência com objetivo, problema, produto, estado atual do código, decisões e próximos passos. Foi escrito em 2026-10-30, a partir do one-pager original e do código na branch `claude/chargeguard-ai-platform-rb7vog` (commit `3c78c94`).
+Documento de referência com objetivo, problema, produto, estado atual do código, decisões e próximos passos. Foi escrito em 2026-10-30 e atualizado em 2026-10-31, a partir do one-pager original e do código na branch `claude/chargeguard-ai-platform-rb7vog`.
+
+> **Decisão de 2026-10-31:** não será possível vincular a API da Anthropic ao projeto, então a análise com LLM passou a usar a **API do Gemini** (`@google/genai`). O one-pager original foi escrito para o programa Anthropic / Claude for Startups; as seções 1 a 6 preservam esse texto original, e o que vale para o código atual está nas seções 7 em diante.
 
 ---
 
@@ -8,7 +10,7 @@ Documento de referência com objetivo, problema, produto, estado atual do códig
 
 ChargeGuard AI é uma infraestrutura de resolução autônoma de chargebacks (disputas de cartão) para plataformas SaaS e de comércio digital globais. Ela pega telemetria de produto, registros de suporte e os Termos de Serviço do comerciante, e monta um dossiê de evidências no padrão exigido pelos bancos para reverter **fraude de primeira parte** ("friendly fraud"), sem intervenção humana.
 
-O pitch é voltado ao programa **Anthropic / Claude for Startups**: o produto usa o raciocínio e a janela de contexto longa do Claude como motor central.
+O pitch original era voltado ao programa **Anthropic / Claude for Startups**, com o Claude como motor central. Na implementação atual o motor é o Gemini (ver a decisão no topo); o pitch precisa ser reescrito se o encaixe com a Anthropic deixar de valer.
 
 ## 2. Problema
 
@@ -22,12 +24,12 @@ O pitch é voltado ao programa **Anthropic / Claude for Startups**: o produto us
 Funciona como um departamento de disputas autônomo, em três etapas:
 
 1. **Gatilho e ingestão.** Recebe webhooks de disputa dos gateways (Stripe, Adyen, Braintree) e consulta os sistemas conectados (Auth0, PostHog, Zendesk, API da Stripe).
-2. **Síntese forense com Claude.** Lê logs de sessão, transcrições de suporte e os Termos de Serviço completos. Avalia a disputa contra as regras de cada rede (Visa 10.4 e 13.1; Mastercard 4837 e 4853), verifica a conformidade com CE 3.0 auditando transações históricas e produz um dossiê cronológico com carta de apresentação, cláusulas contratuais destacadas e a carta no idioma nativo do banco emissor.
+2. **Síntese forense com LLM (no pitch: Claude; no código atual: Gemini).** Lê logs de sessão, transcrições de suporte e os Termos de Serviço completos. Avalia a disputa contra as regras de cada rede (Visa 10.4 e 13.1; Mastercard 4837 e 4853), verifica a conformidade com CE 3.0 auditando transações históricas e produz um dossiê cronológico com carta de apresentação, cláusulas contratuais destacadas e a carta no idioma nativo do banco emissor.
 3. **Representação automática.** Envia o pacote final pela API de disputas do processador em horas, bem antes dos prazos usuais de 7 a 21 dias.
 
 Um ponto de design importante: o produto sabe **quando não contestar**. Se a evidência mostra que o comerciante falhou com os próprios termos (por exemplo, um pedido de reembolso sem resposta dentro da janela de reembolso), a recomendação é aceitar a disputa, protegendo a taxa de disputa.
 
-## 4. Por que Claude
+## 4. Por que um LLM de contexto longo (pitch original: Claude)
 
 - **Raciocínio complexo:** separar disputa legítima de friendly fraud exige cruzar contexto de conversa com logs de uso do produto.
 - **Contexto longo:** auditar contratos SaaS de várias páginas junto com milhares de linhas de logs JSON exige 200k+ tokens.
@@ -55,14 +57,14 @@ Repositório: `github.com/Negzs06/startup`, branch `claude/chargeguard-ai-platfo
 
 ### Stack
 
-Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, componentes no estilo shadcn/ui sobre `radix-ui`, SDK TypeScript da Anthropic e zod. Testes com `node:test` via `tsx`.
+Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, componentes no estilo shadcn/ui sobre `radix-ui`, SDK Google Gen AI (`@google/genai`) e zod. Testes com `node:test` via `tsx`.
 
 > `AGENTS.md` avisa que esta versão do Next.js tem mudanças incompatíveis. Antes de escrever código, leia o guia relevante em `node_modules/next/dist/docs/`.
 
 ### Funcionalidades
 
 **Páginas**
-- Landing page em inglês: problema, como funciona, por que Claude, preços e metas.
+- Landing page em inglês: problema, como funciona, por que Gemini, preços e metas.
 - Dashboard em `/dashboard`: fila de disputas e faixa de KPIs (taxa de vitória, tempo mediano até o envio, valor recuperado, taxa de disputa frente ao limite de 0,9%).
 - Visão de cada caso em `/dashboard/disputes/[id]`: veredito, auditoria CE 3.0, linha do tempo, cláusulas dos Termos destacadas e carta de apresentação no idioma do emissor.
 
@@ -76,11 +78,11 @@ Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, componen
 - normalização de `charge.dispute.created` em um registro de disputa;
 - responde 503 se `STRIPE_WEBHOOK_SECRET` não estiver configurado.
 
-**Análise com Claude** (`src/lib/analysis/`, rota `POST /api/disputes/[id]/analyze`):
-- uma chamada à Messages API com pensamento adaptativo e saída estruturada validada por schema zod; modelo padrão `claude-opus-5-5`, configurável por `CHARGEGUARD_MODEL`;
-- sinais determinísticos (CE 3.0, pedidos de reembolso versus janela de reembolso, uso após a cobrança, logins de dispositivo conhecido e autenticação forte) são calculados no código e entregues ao Claude como fatos;
+**Análise com Gemini** (`src/lib/analysis/`, rota `POST /api/disputes/[id]/analyze`):
+- uma chamada `generateContent` em modo JSON, com o schema de resposta derivado do mesmo schema zod que valida a saída; modelo padrão `gemini-3.5-flash`, configurável por `GEMINI_MODEL` (o ID padrão não foi confirmado contra uma chave real, e os IDs de modelo do Gemini mudam com frequência);
+- sinais determinísticos (CE 3.0, pedidos de reembolso versus janela de reembolso, uso após a cobrança, logins de dispositivo conhecido e autenticação forte) são calculados no código e entregues ao modelo como fatos;
 - a alegação do portador e os tickets de suporte vão em um bloco separado `<untrusted_customer_content>`, com `<` e `>` escapados, e o prompt manda tratar como dado e reportar texto que pareça instrução. O caso CG-1046 contém uma tentativa de injeção de prompt para testar isso;
-- `stop_reason` é checado antes de ler a saída: recusa e truncamento por `max_tokens` geram erro, assim como saída ausente, que não seja JSON ou que não passe no schema; a requisição usa o fallback de recusa do lado do servidor (`fallbacks: "default"`);
+- o motivo de parada é checado antes de ler a saída: prompt bloqueado e finalização por segurança contam como recusa, truncamento por limite de tokens gera erro, assim como saída ausente, que não seja JSON ou que não passe no schema;
 - a saída passa por uma etapa de **fundamentação** (`ground.ts`): entradas da linha do tempo e citações precisam apontar para registros reais (os timestamps vêm do registro, não do modelo), as cláusulas precisam existir, os trechos destacados precisam ser citações literais, e um veredito "contestar" é revertido para "aceitar" quando a regra de culpa do comerciante dispara;
 - qualquer falha, ou ausência de chave de API, cai para o dossiê baseado em regras, e a interface indica isso e o motivo.
 
@@ -105,7 +107,7 @@ Os KPIs são calculados a partir do histórico de demonstração em `src/lib/dem
 src/lib/domain/        Tipos e catálogo de códigos de motivo
 src/lib/ce3/           Motor de auditoria Visa CE 3.0
 src/lib/stripe/        Verificação de assinatura do webhook e normalização
-src/lib/analysis/      Sinais, prompt, chamada ao Claude, fundamentação, dossiê por regras, cartas
+src/lib/analysis/      Sinais, prompt, chamada ao Gemini, fundamentação, dossiê por regras, cartas
 src/lib/demo/          Casos de demonstração, Termos de Serviço, histórico de KPIs
 src/app/api/           Rotas: analyze e webhook da Stripe
 src/app/dashboard/     Fila + KPIs e visão do caso
@@ -128,8 +130,8 @@ Sem configuração, o app roda com dados de demonstração e dossiê por regras.
 
 | Variável | Para que serve |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | Habilita a análise com Claude na rota de análise. Sem ela, a rota devolve o dossiê por regras e informa o motivo. |
-| `CHARGEGUARD_MODEL` | Sobrescreve o modelo. Padrão: `claude-opus-5-5`. |
+| `GEMINI_API_KEY` | Habilita a análise com Gemini na rota de análise (a chave é criada no Google AI Studio). Sem ela, a rota devolve o dossiê por regras e informa o motivo. |
+| `GEMINI_MODEL` | Sobrescreve o modelo. Padrão: `gemini-3.5-flash`. |
 | `STRIPE_WEBHOOK_SECRET` | Segredo de assinatura do `POST /api/webhooks/stripe`. |
 
 ### Verificação mais recente
@@ -140,14 +142,14 @@ Conferido em 2026-10-30 no checkout local da branch: 45 de 45 testes passam; lin
 
 ## 8. O que é real e o que é simulado
 
-**Real e testado:** auditoria CE 3.0, verificação de assinatura do webhook da Stripe, estrutura da análise com Claude (parsing, fundamentação e fallback cobertos por testes com um requisitor injetado).
+**Real e testado:** auditoria CE 3.0, verificação de assinatura do webhook da Stripe, estrutura da análise com Gemini (interpretação da resposta, fundamentação e fallback cobertos por testes; a requisição foi conferida com o SDK real contra um servidor local de teste).
 
 **Simulado ou não construído:**
 - **Sem banco de dados.** Webhooks verificados são normalizados e devolvidos (`persisted: false`), mas não armazenados nem criam casos no dashboard.
 - **Sem conectores reais.** Auth0, PostHog, Zendesk e o histórico de cobranças da Stripe são representados por registros fixos nos casos de demonstração. Adyen e Braintree não estão implementados.
 - **O envio é simulado.** Os botões de enviar ou aceitar só mostram um aviso; nenhuma API de processador é chamada.
 - **A rota de análise não tem autenticação** e só aceita IDs de casos de demonstração. É preciso autenticação e escopo por comerciante antes de tocar dados reais.
-- **A chamada real ao Claude nunca foi executada neste repositório**, por falta de chave de API. A forma da requisição segue o SDK atual, mas é preciso rodar contra a API antes de confiar nela.
+- **A chamada real ao Gemini nunca foi executada neste repositório**, por falta de chave de API. O ID de modelo padrão e a aceitação do schema de resposta pela API não foram confirmados; é preciso rodar com uma chave real antes de confiar nela.
 - **As cartas por regras são templates** em alemão, português (Brasil), japonês, francês e inglês, sem revisão por falantes nativos.
 - Os resumos das regras de rede em `src/lib/domain/reason-codes.ts` são paráfrases, não os textos oficiais das redes.
 - URLs de caso desconhecidas renderizam a página de não encontrado, mas com HTTP 200, porque o Cache Components transmite o shell da página.
@@ -156,14 +158,16 @@ Conferido em 2026-10-30 no checkout local da branch: 45 de 45 testes passam; lin
 ## 9. Histórico do projeto
 
 1. A branch partiu de um scaffold de outro projeto (RefactorPulse, uma plataforma de modernização de código legado). Esse código continua na branch `claude/refactorpulse-mvp-b0gvxy`.
-2. **Primeira versão do ChargeGuard** (commit `51359f8`): landing, dashboard com fila e visão do caso, motor CE 3.0, rota de análise com Claude e fallback, webhook da Stripe, 11 testes.
+2. **Primeira versão do ChargeGuard** (commit `51359f8`): landing, dashboard com fila e visão do caso, motor CE 3.0, rota de análise com LLM (na época, Claude) e fallback, webhook da Stripe, 11 testes.
 3. **Reconstrução do zero** (commit `3c78c94`), pedida pelo usuário e executada pelo Opus 5.5 em uma sessão separada: nova estrutura modular, fundamentação das saídas do modelo, defesa contra injeção de prompt, páginas por caso, 45 testes. Na reconstrução, a versão do Next.js subiu de 16.4.0 para 16.4.3, e a causa dessa mudança não foi confirmada.
 
-O histórico das duas versões está no git.
+4. **Troca do provedor de LLM para o Gemini** (2026-10-31): a API da Anthropic não pôde ser vinculada ao projeto. A camada de análise ficou independente de provedor (`DossierOutputSchema`, `source: "ai"`), o cliente passou a `src/lib/analysis/gemini.ts`, o SDK da Anthropic foi removido, os textos da interface e da landing passaram a dizer Gemini e os testes foram ampliados para 55.
+
+O histórico das versões está no git.
 
 ## 10. Próximos passos sugeridos
 
-1. Rodar a análise com Claude de ponta a ponta com uma chave de API real e comparar com o caminho por regras.
+1. Rodar a análise com Gemini de ponta a ponta com uma chave real do Google AI Studio, confirmar o ID de modelo e a aceitação do schema, e comparar com o caminho por regras.
 2. Persistência (por exemplo Postgres) para que um webhook gere um caso armazenado.
 3. Conectores reais de Auth0, PostHog, Zendesk e Stripe, depois Adyen e Braintree.
 4. Envio real pela API de disputas do processador, com revisão humana opcional antes do primeiro envio.

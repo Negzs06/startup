@@ -63,7 +63,7 @@ export function CaseWorkspace({ caseFile, initial, now }: { caseFile: CaseFile; 
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={runAnalysis} disabled={pending}>
             {pending ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles aria-hidden />}
-            {pending ? "Analysing…" : result.source === "claude" ? "Re-run Claude analysis" : "Run Claude analysis"}
+            {pending ? "Analysing…" : result.source === "ai" ? "Re-run AI analysis" : "Run AI analysis"}
           </Button>
           <Button onClick={() => setSubmittedAt(new Date().toISOString())} disabled={pending || submittedAt !== null}>
             <Send aria-hidden />
@@ -140,11 +140,11 @@ export function CaseWorkspace({ caseFile, initial, now }: { caseFile: CaseFile; 
 }
 
 function SourceBanner({ result }: { result: AnalysisResult }) {
-  if (result.source === "claude") {
+  if (result.source === "ai") {
     return (
       <p className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-accent/60 p-3 text-sm">
         <Bot className="size-4 text-primary" aria-hidden />
-        <span className="font-medium">Claude analysis</span>
+        <span className="font-medium">Gemini analysis</span>
         <Badge variant="outline" className="font-mono font-normal">{result.model}</Badge>
         <span className="text-muted-foreground">generated {formatDateTime(result.generatedAt)}</span>
         {result.guardrails.length ? <span className="text-muted-foreground">· {result.guardrails.length} guardrail note(s) below</span> : null}

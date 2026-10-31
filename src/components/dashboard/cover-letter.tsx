@@ -16,7 +16,7 @@ export function CoverLetterCard({ letter, templated }: { letter: Dossier["coverL
         <CardDescription>
           {templated
             ? "Rule-based template. Have a fluent reviewer check wording before relying on it."
-            : "Written by Claude for the issuing bank, with an English version for your records."}
+            : "Written by Gemini for the issuing bank, with an English version for your records."}
         </CardDescription>
       </CardHeader>
       <CardContent>

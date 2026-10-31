@@ -79,7 +79,7 @@ Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, componen
 - responde 503 se `STRIPE_WEBHOOK_SECRET` não estiver configurado.
 
 **Análise com Gemini** (`src/lib/analysis/`, rota `POST /api/disputes/[id]/analyze`):
-- uma chamada `generateContent` em modo JSON, com o schema de resposta derivado do mesmo schema zod que valida a saída; modelo padrão `gemini-3.5-flash`, configurável por `GEMINI_MODEL` (o ID padrão não foi confirmado contra uma chave real, e os IDs de modelo do Gemini mudam com frequência);
+- uma chamada `generateContent` em modo JSON, com o schema de resposta derivado do mesmo schema zod que valida a saída; modelo padrão `gemini-3.5-flash`, configurável por `GEMINI_MODEL` (os IDs de modelo do Gemini mudam com frequência; a API reportou `gemini-3.6-flash` como versão servida); erros transitórios 503/429/500/504 são repetidos até 3 vezes antes do fallback;
 - sinais determinísticos (CE 3.0, pedidos de reembolso versus janela de reembolso, uso após a cobrança, logins de dispositivo conhecido e autenticação forte) são calculados no código e entregues ao modelo como fatos;
 - a alegação do portador e os tickets de suporte vão em um bloco separado `<untrusted_customer_content>`, com `<` e `>` escapados, e o prompt manda tratar como dado e reportar texto que pareça instrução. O caso CG-1046 contém uma tentativa de injeção de prompt para testar isso;
 - o motivo de parada é checado antes de ler a saída: prompt bloqueado e finalização por segurança contam como recusa, truncamento por limite de tokens gera erro, assim como saída ausente, que não seja JSON ou que não passe no schema;
@@ -142,14 +142,14 @@ Conferido em 2026-10-30 no checkout local da branch: 45 de 45 testes passam; lin
 
 ## 8. O que é real e o que é simulado
 
-**Real e testado:** auditoria CE 3.0, verificação de assinatura do webhook da Stripe, estrutura da análise com Gemini (interpretação da resposta, fundamentação e fallback cobertos por testes; a requisição foi conferida com o SDK real contra um servidor local de teste).
+**Real e testado:** auditoria CE 3.0, verificação de assinatura do webhook da Stripe, estrutura da análise com Gemini (interpretação da resposta, repetição de erros transitórios, fundamentação e fallback cobertos por testes; a requisição foi conferida com o SDK real contra um servidor local de teste, e a chamada ao Gemini de verdade foi feita à mão, ver abaixo).
 
 **Simulado ou não construído:**
 - **Sem banco de dados.** Webhooks verificados são normalizados e devolvidos (`persisted: false`), mas não armazenados nem criam casos no dashboard.
 - **Sem conectores reais.** Auth0, PostHog, Zendesk e o histórico de cobranças da Stripe são representados por registros fixos nos casos de demonstração. Adyen e Braintree não estão implementados.
 - **O envio é simulado.** Os botões de enviar ou aceitar só mostram um aviso; nenhuma API de processador é chamada.
 - **A rota de análise não tem autenticação** e só aceita IDs de casos de demonstração. É preciso autenticação e escopo por comerciante antes de tocar dados reais.
-- **A chamada real ao Gemini nunca foi executada neste repositório**, por falta de chave de API. O ID de modelo padrão e a aceitação do schema de resposta pela API não foram confirmados; é preciso rodar com uma chave real antes de confiar nela.
+- **A chamada real ao Gemini foi executada uma vez, à mão, em 2026-10-31**, nos seis casos de demonstração: o ID de modelo padrão e o schema foram aceitos, os vereditos bateram com a tabela da seção 7 (CG-1044 aceito; o texto de injeção plantado no CG-1046 foi sinalizado e ignorado) e nenhuma salvaguarda de fundamentação disparou. Essa execução não faz parte da suíte de testes, não foi repetida com outras chaves ou modelos nem com dados reais, e a qualidade das cartas não foi revisada por falantes nativos. O modelo às vezes responde 503 por alta demanda.
 - **As cartas por regras são templates** em alemão, português (Brasil), japonês, francês e inglês, sem revisão por falantes nativos.
 - Os resumos das regras de rede em `src/lib/domain/reason-codes.ts` são paráfrases, não os textos oficiais das redes.
 - URLs de caso desconhecidas renderizam a página de não encontrado, mas com HTTP 200, porque o Cache Components transmite o shell da página.
@@ -161,13 +161,13 @@ Conferido em 2026-10-30 no checkout local da branch: 45 de 45 testes passam; lin
 2. **Primeira versão do ChargeGuard** (commit `51359f8`): landing, dashboard com fila e visão do caso, motor CE 3.0, rota de análise com LLM (na época, Claude) e fallback, webhook da Stripe, 11 testes.
 3. **Reconstrução do zero** (commit `3c78c94`), pedida pelo usuário e executada pelo Opus 5.5 em uma sessão separada: nova estrutura modular, fundamentação das saídas do modelo, defesa contra injeção de prompt, páginas por caso, 45 testes. Na reconstrução, a versão do Next.js subiu de 16.4.0 para 16.4.3, e a causa dessa mudança não foi confirmada.
 
-4. **Troca do provedor de LLM para o Gemini** (2026-10-31): a API da Anthropic não pôde ser vinculada ao projeto. A camada de análise ficou independente de provedor (`DossierOutputSchema`, `source: "ai"`), o cliente passou a `src/lib/analysis/gemini.ts`, o SDK da Anthropic foi removido, os textos da interface e da landing passaram a dizer Gemini e os testes foram ampliados para 55.
+4. **Troca do provedor de LLM para o Gemini** (2026-10-31): a API da Anthropic não pôde ser vinculada ao projeto. A camada de análise ficou independente de provedor (`DossierOutputSchema`, `source: "ai"`), o cliente passou a `src/lib/analysis/gemini.ts`, o SDK da Anthropic foi removido, os textos da interface e da landing passaram a dizer Gemini e os testes foram ampliados para 57. A chamada real foi testada nos seis casos; o prompt foi ajustado para as cartas não citarem IDs internos de evidência.
 
 O histórico das versões está no git.
 
 ## 10. Próximos passos sugeridos
 
-1. Rodar a análise com Gemini de ponta a ponta com uma chave real do Google AI Studio, confirmar o ID de modelo e a aceitação do schema, e comparar com o caminho por regras.
+1. Transformar a execução manual com o Gemini em uma avaliação repetível (casos com veredito esperado) para detectar regressões ao trocar de modelo ou de prompt, e fazer a revisão das cartas por falantes nativos.
 2. Persistência (por exemplo Postgres) para que um webhook gere um caso armazenado.
 3. Conectores reais de Auth0, PostHog, Zendesk e Stripe, depois Adyen e Braintree.
 4. Envio real pela API de disputas do processador, com revisão humana opcional antes do primeiro envio.

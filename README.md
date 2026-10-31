@@ -81,12 +81,15 @@ Copy `.env.example` to `.env.local` to enable the rest:
   buttons only show a notice; no processor API is called.
 - **The analyze route is unauthenticated** and only accepts demo case IDs. Add
   authentication and per-merchant scoping before it touches real data.
-- **The live Gemini call has not been exercised in this repository** (no API
-  key was available while building it). The request is checked against the real
-  SDK talking to a local stand-in server, and the parsing, grounding and
-  fallback paths are covered by tests, but the default model ID and Gemini's
-  acceptance of the response schema are unverified: run it with a real key
-  before relying on it.
+- **The live Gemini call was run once, by hand, on 2026-10-31** against all six
+  demo cases with a real key: the default model ID and the response schema were
+  accepted, verdicts matched the table below (CG-1044 accepted, the planted
+  prompt-injection text in CG-1046 flagged and ignored) and no grounding
+  guardrail fired. That run is not part of the test suite and was not repeated
+  with other keys, models or real merchant data; the model sometimes answers
+  503 "high demand", which the client retries (3 attempts) before falling back
+  to the rule-based dossier. Letter wording has not been reviewed by native
+  speakers.
 - **Rule-based cover letters are templates** in German, Portuguese (Brazil),
   Japanese, French and English. They have not been reviewed by native
   speakers.

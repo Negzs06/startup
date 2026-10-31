@@ -56,7 +56,7 @@ describe("requestDossier over HTTP", () => {
         modelVersion: "gemini-test-001",
       },
     });
-    const { output, model } = await requestDossier("CASE PROMPT", { apiKey: "test-key", model: "gemini-test" });
+    const { output, model } = await requestDossier("CASE PROMPT", { apiKey: "test-key", model: "gemini-test", retryDelaySeconds: 0.01 });
 
     assert.equal(output.verdict.decision, "accept");
     assert.equal(model, "gemini-test-001");
@@ -71,6 +71,28 @@ describe("requestDossier over HTTP", () => {
     assert.match(JSON.stringify(seen.body.contents), /CASE PROMPT/);
   });
 
+  it("retries transient 503s and succeeds when the service recovers", async () => {
+    let calls = 0;
+    respond = () => {
+      calls += 1;
+      if (calls < 3) return { status: 503, body: { error: { code: 503, message: "This model is currently experiencing high demand.", status: "UNAVAILABLE" } } };
+      return { status: 200, body: { candidates: [{ content: { role: "model", parts: [{ text: JSON.stringify(dossier) }] }, finishReason: "STOP" }] } };
+    };
+    const { output } = await requestDossier("p", { apiKey: "k", model: "m", retryDelaySeconds: 0.01 });
+    assert.equal(output.verdict.decision, "accept");
+    assert.equal(calls, 3);
+  });
+
+  it("gives up with a readable error when the service stays unavailable", async () => {
+    let calls = 0;
+    respond = () => {
+      calls += 1;
+      return { status: 503, body: { error: { code: 503, message: "high demand", status: "UNAVAILABLE" } } };
+    };
+    await assert.rejects(requestDossier("p", { apiKey: "k", model: "m", retryDelaySeconds: 0.01 }), (e: unknown) => e instanceof AnalysisError && /503/.test(e.message));
+    assert.equal(calls, 3);
+  });
+
   it("maps API failures to readable errors", async () => {
     const cases: [number, RegExp][] = [
       [400, /rejected the API key/],
@@ -81,7 +103,7 @@ describe("requestDossier over HTTP", () => {
     for (const [status, message] of cases) {
       respond = () => ({ status, body: { error: { code: status, message: status === 400 ? "API key not valid. Please pass a valid API key." : "nope", status: "ERR" } } });
       await assert.rejects(
-        requestDossier("p", { apiKey: "k", model: "m" }),
+        requestDossier("p", { apiKey: "k", model: "m", retryDelaySeconds: 0.01 }),
         (error: unknown) => error instanceof AnalysisError && error.code === "api_error" && message.test(error.message),
         String(status),
       );

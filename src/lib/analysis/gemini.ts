@@ -71,10 +71,23 @@ export function parseDossierResponse(response: Pick<GenerateContentResponse, "ca
 export interface RequestOptions {
   apiKey: string;
   model?: string;
+  /** Delay before the first retry of a transient failure, in seconds; doubles each attempt. */
+  retryDelaySeconds?: number;
 }
 
-export async function requestDossier(userPrompt: string, { apiKey, model = resolveModel() }: RequestOptions): Promise<{ output: DossierOutput; model: string }> {
-  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 180_000 } });
+// Gemini answers 503 "high demand" in bursts. Three attempts at 90 s each stay inside the route's 300 s limit.
+const REQUEST_TIMEOUT_MS = 90_000;
+const RETRY_ATTEMPTS = 3;
+const RETRYABLE_STATUS_CODES = [429, 500, 503, 504];
+
+export async function requestDossier(userPrompt: string, { apiKey, model = resolveModel(), retryDelaySeconds = 2 }: RequestOptions): Promise<{ output: DossierOutput; model: string }> {
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      timeout: REQUEST_TIMEOUT_MS,
+      retryOptions: { attempts: RETRY_ATTEMPTS, initialDelay: retryDelaySeconds, maxDelay: 20, httpStatusCodes: RETRYABLE_STATUS_CODES },
+    },
+  });
 
   let response: GenerateContentResponse;
   try {

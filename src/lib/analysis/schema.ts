@@ -22,7 +22,7 @@ export const DossierOutputSchema = z.object({
       requirement: z.string(),
       status: RequirementStatus,
       note: z.string(),
-      evidenceRefs: z.array(z.string()).describe("IDs from the evidence index only."),
+      evidenceRefs: z.array(z.string()).describe("IDs from the evidence index, or Terms of Service clause IDs. Nothing else."),
     }),
   ),
   timeline: z

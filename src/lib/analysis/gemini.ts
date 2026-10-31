@@ -68,6 +68,22 @@ export function parseDossierResponse(response: Pick<GenerateContentResponse, "ca
   return { output: parsed.data, model: response.modelVersion ?? requestedModel };
 }
 
+/** Readable summary of a Gemini 429: which limit was hit and when to retry. */
+export function describeRateLimit(apiMessage: string): string {
+  let text = apiMessage;
+  try {
+    const parsed = JSON.parse(apiMessage) as { error?: { message?: string } };
+    text = parsed.error?.message ?? apiMessage;
+  } catch {
+    // Not JSON: use the message as is.
+  }
+  const limit = text.match(/limit: (\d+), model: ([\w.-]+)/);
+  const period = text.match(/requests per (day|minute)/i)?.[1];
+  const retryIn = text.match(/retry in ([\dhms.]+)/i)?.[1]?.replace(/\.\d+/g, "");
+  const parts = [limit && `limit ${limit[1]}${period ? ` per ${period.toLowerCase()}` : ""} for ${limit[2]}`, retryIn && `retry in ${retryIn}`].filter(Boolean);
+  return `Gemini API quota or rate limit reached${parts.length ? ` (${parts.join("; ")})` : ""}.`;
+}
+
 export interface RequestOptions {
   apiKey: string;
   model?: string;
@@ -76,9 +92,10 @@ export interface RequestOptions {
 }
 
 // Gemini answers 503 "high demand" in bursts. Three attempts at 90 s each stay inside the route's 300 s limit.
+// 429 is deliberately not retried: it means a quota is used up (on the free tier often the daily one), so retrying only burns requests.
 const REQUEST_TIMEOUT_MS = 90_000;
 const RETRY_ATTEMPTS = 3;
-const RETRYABLE_STATUS_CODES = [429, 500, 503, 504];
+const RETRYABLE_STATUS_CODES = [500, 503, 504];
 
 export async function requestDossier(userPrompt: string, { apiKey, model = resolveModel(), retryDelaySeconds = 2 }: RequestOptions): Promise<{ output: DossierOutput; model: string }> {
   const ai = new GoogleGenAI({
@@ -106,7 +123,7 @@ export async function requestDossier(userPrompt: string, { apiKey, model = resol
       // An invalid key comes back as HTTP 400 (API_KEY_INVALID) rather than 401/403.
       if (error.status === 401 || error.status === 403 || /API[_ ]KEY[_ ](INVALID|NOT VALID)|API key not valid/i.test(error.message)) throw new AnalysisError("api_error", "Gemini API rejected the API key.");
       if (error.status === 404) throw new AnalysisError("api_error", `Gemini model "${model}" was not found; set GEMINI_MODEL to a model your key can use.`);
-      if (error.status === 429) throw new AnalysisError("api_error", "Gemini API rate limit reached.");
+      if (error.status === 429) throw new AnalysisError("api_error", describeRateLimit(error.message));
       throw new AnalysisError("api_error", `Gemini API error ${error.status}: ${error.message}`);
     }
     throw new AnalysisError("api_error", error instanceof Error ? error.message : "Unknown error calling the Gemini API.");

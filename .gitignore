@@ -42,3 +42,6 @@ next-env.d.ts
 
 # allow the documented example
 !.env.example
+
+# evaluation outputs (full dossiers); evals/baseline.json is committed
+/evals/results/

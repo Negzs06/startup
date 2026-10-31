@@ -25,13 +25,16 @@ export function groundDossier(
   }
   timeline.sort((a, b) => a.at.localeCompare(b.at));
 
-  let droppedRefs = 0;
+  // Requirements may also cite Terms of Service clauses: they are real records, just not dated evidence.
+  const clauseIds = new Set(caseFile.tos.clauses.map((c) => c.id));
+  const citable = (ref: string) => index.has(ref) || clauseIds.has(ref);
+  const droppedRefs: string[] = [];
   const requirements = output.requirements.map((r) => {
-    const refs = r.evidenceRefs.filter((ref) => index.has(ref));
-    droppedRefs += r.evidenceRefs.length - refs.length;
+    const refs = r.evidenceRefs.filter(citable);
+    droppedRefs.push(...r.evidenceRefs.filter((ref) => !citable(ref)));
     return { ...r, evidenceRefs: refs };
   });
-  if (droppedRefs) guardrails.push(`Removed ${droppedRefs} requirement citation(s) that did not match any record.`);
+  if (droppedRefs.length) guardrails.push(`Removed ${droppedRefs.length} requirement citation(s) that did not match any record: ${droppedRefs.map((ref) => `"${ref}"`).join(", ")}.`);
 
   const clauses: HighlightedClause[] = [];
   for (const c of output.highlightedClauses) {

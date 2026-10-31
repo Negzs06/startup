@@ -103,6 +103,43 @@ Copy `.env.example` to `.env.local` to enable the rest:
   the shadcn source (the registry was not reachable from the build
   environment); they use the `radix-ui` package.
 
+## Evaluating the model analysis
+
+`npm test` never calls a model. To check that a model or prompt change did not
+make the dossiers worse, run the live evaluation:
+
+```bash
+GEMINI_API_KEY=... npm run eval -- [--trials 2] [--concurrency 1] [--cases CG-1044,CG-1045] \
+                                   [--model <id>] [--baseline evals/baseline.json] [--update-baseline]
+```
+
+It analyses each demo case `--trials` times and grades every result with
+deterministic checks (no second model as judge), defined in `evals/graders.ts`:
+verdict, confidence range, grounding notes, consistency with the computed CE 3.0
+audit, cover-letter language, no internal evidence IDs or raw ISO timestamps in
+the letters, the letters name the case, the letter agrees with the verdict, the
+timeline cites the disputed charge, and the planted injection is flagged.
+Expectations live in `evals/cases.ts` and are judgement calls, not model output.
+
+- **Gates apply per case.** Each check has a minimum pass rate that every case
+  must meet, so an average cannot hide a case that always fails. Exit code 1 on
+  a failed gate, 2 on bad usage.
+- **Fallbacks are not counted as model results.** A trial that fell back to the
+  rule-based dossier (rate limit, 5xx, refusal) is reported separately, and a run
+  with more than 25% of them, or one that stopped early, fails.
+- **Baseline.** With `--baseline`, a drop of more than 10 points in any check
+  versus the saved summary fails the run. `--update-baseline` writes
+  `evals/baseline.json`, but only from a run with no failures. No baseline is
+  committed yet (see below), and the baseline write path has not been exercised
+  against the live API.
+- **Cost.** It makes cases x trials requests (12 by default). The Gemini free
+  tier allowed 20 requests per model per day on the key used while building
+  this, and the quota is per model, so one default run fits once a day. The run
+  stops early when the daily quota is gone.
+- Full dossiers of each run go to `evals/results/` (git-ignored).
+- The graders themselves are covered by offline tests (`tests/evals.test.ts`):
+  they accept the rule-based reference dossiers and reject deliberately broken ones.
+
 ## Demo data
 
 Six open disputes for a fictional SaaS merchant, Lumen Analytics, as of
@@ -128,5 +165,6 @@ src/lib/demo/          Demo case files, ToS, KPI history
 src/app/api/           analyze + Stripe webhook route handlers
 src/app/dashboard/     Queue + KPI page and case view
 src/components/        Landing, dashboard and ui components
-tests/                 CE 3.0, Stripe webhook, analysis and metrics tests
+tests/                 CE 3.0, Stripe webhook, analysis, Gemini client, grader and metrics tests
+evals/                 Live evaluation: expectations, graders, report, runner
 ```

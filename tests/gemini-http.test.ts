@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, it } from "node:test";
 import { setDefaultBaseUrls } from "@google/genai";
-import { AnalysisError, requestDossier } from "@/lib/analysis/gemini";
+import { AnalysisError, describeRateLimit, requestDossier } from "@/lib/analysis/gemini";
 
 // Exercises the real @google/genai client against a local stand-in for the
 // Gemini REST endpoint, to check what we send and how a reply is read back.
@@ -98,7 +98,7 @@ describe("requestDossier over HTTP", () => {
       [400, /rejected the API key/],
       [403, /rejected the API key/],
       [404, /GEMINI_MODEL/],
-      [429, /rate limit/],
+      [429, /quota or rate limit/],
     ];
     for (const [status, message] of cases) {
       respond = () => ({ status, body: { error: { code: status, message: status === 400 ? "API key not valid. Please pass a valid API key." : "nope", status: "ERR" } } });
@@ -110,3 +110,27 @@ describe("requestDossier over HTTP", () => {
     }
   });
 });
+
+describe("quota errors", () => {
+  const quotaMessage =
+    "You exceeded your current quota.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-test\ndescription: Generate content requests per day limit exceeded on Free Tier.\nPlease retry in 16h3m40.339085781s.";
+
+  it("is not retried and names the limit and the wait", async () => {
+    let calls = 0;
+    respond = () => {
+      calls += 1;
+      return { status: 429, body: { error: { code: 429, message: quotaMessage, status: "RESOURCE_EXHAUSTED" } } };
+    };
+    await assert.rejects(
+      requestDossier("p", { apiKey: "k", model: "m", retryDelaySeconds: 0.01 }),
+      (e: unknown) => e instanceof AnalysisError && /limit 20 per day for gemini-test; retry in 16h3m40s/.test(e.message),
+    );
+    assert.equal(calls, 1);
+  });
+
+  it("summarises what it can when the message is unstructured", () => {
+    assert.equal(describeRateLimit("slow down"), "Gemini API quota or rate limit reached.");
+    assert.match(describeRateLimit(JSON.stringify({ error: { message: quotaMessage } })), /limit 20 per day/);
+  });
+});
+

@@ -86,6 +86,26 @@ Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, componen
 - a saída passa por uma etapa de **fundamentação** (`ground.ts`): entradas da linha do tempo e citações precisam apontar para registros reais (os timestamps vêm do registro, não do modelo), as cláusulas precisam existir, os trechos destacados precisam ser citações literais, e um veredito "contestar" é revertido para "aceitar" quando a regra de culpa do comerciante dispara;
 - qualquer falha, ou ausência de chave de API, cai para o dossiê baseado em regras, e a interface indica isso e o motivo.
 
+### Avaliação repetível da análise com o modelo
+
+`npm run eval` (`evals/`) roda a análise real nos seis casos de demonstração, várias vezes cada, e avalia cada resultado com verificações determinísticas, sem um segundo modelo como juiz: veredito, faixa de confiança, notas de fundamentação, coerência com a auditoria CE 3.0 calculada em código, idioma das cartas, ausência de IDs internos e timestamps ISO crus nas cartas, identificação do caso nas cartas, coerência da carta com o veredito, presença da cobrança na linha do tempo e sinalização do texto de injeção plantado. As expectativas (`evals/cases.ts`) são julgamentos sobre os casos, não saídas do modelo.
+
+- Os limites mínimos valem **por caso**, para que uma média não esconda um caso que sempre falha.
+- Tentativas que caem no dossiê por regras (limite de taxa, erro 5xx, recusa) são contadas à parte e não como resultado do modelo; uma execução com mais de 25% delas, ou interrompida, reprova.
+- `--baseline` compara com um resumo salvo e reprova se alguma verificação cair mais de 10 pontos; `--update-baseline` grava `evals/baseline.json` só a partir de uma execução sem falhas. **Ainda não há linha de base commitada**, e a gravação da linha de base não foi exercitada contra a API real.
+- Custo: casos x repetições requisições (12 por padrão). No plano gratuito da chave usada, o limite foi de 20 requisições por dia **por modelo**; a execução para sozinha quando a cota diária acaba.
+- Os avaliadores têm testes offline (`tests/evals.test.ts`): aceitam os dossiês de referência por regras e rejeitam dossiês deliberadamente defeituosos.
+
+**Primeiras execuções (2026-10-31), com a chave gratuita:**
+
+| Modelo | Tentativas avaliadas | Resultado |
+| --- | --- | --- |
+| `gemini-3.5-flash` (padrão) | 3 de 18 | A cota diária acabou durante a execução; só o CG-1041 foi avaliado (passou em tudo). Não vale como avaliação do modelo padrão |
+| `gemini-3-flash-preview` | 12 + 4 | Reprovou duas verificações: cartas sem identificação do caso (corrigido com o prompt) e citações de cláusulas dos Termos removidas pela fundamentação (corrigido na regra, ver abaixo) |
+| `gemini-3.1-flash-lite` | 12 de 12 | Com a regra final por caso: **reprovado**, confiança *alta* nas duas tentativas do CG-1045 (caso sem CE 3.0, esperado baixa ou média). O resto passou |
+
+Mudanças feitas por causa dessas execuções: o prompt passou a exigir ID da disputa, ID da transação e valor na carta; a fundamentação passou a aceitar IDs de cláusulas dos Termos nas citações dos requisitos (são registros reais; a linha do tempo continua exigindo evidências com data) e a nota de fundamentação passou a listar quais citações foram removidas. O prompt e a regra foram ajustados com os mesmos seis casos que os avaliam, então não há avaliação independente dessas duas mudanças.
+
 ### Dados de demonstração
 
 Seis disputas abertas de um comerciante SaaS fictício, a Lumen Analytics, na data de 28/10/2026. Todas as pessoas, bancos e empresas são fictícios.
@@ -136,7 +156,7 @@ Sem configuração, o app roda com dados de demonstração e dossiê por regras.
 
 ### Verificação mais recente
 
-Conferido em 2026-10-30 no checkout local da branch: 45 de 45 testes passam; lint, `npm run typecheck` e `next build` passam; landing e `/dashboard` respondem 200. A rota de análise respondeu pelo caminho de regras (`source: rule-based`) por não haver chave de API.
+Conferido em 2026-10-31 no checkout local da branch: 88 de 88 testes passam; lint, `npm run typecheck` e `next build` passam. A análise com o Gemini foi exercitada à mão e pela avaliação, ver a seção 8 e a avaliação acima.
 
 ---
 
@@ -162,12 +182,13 @@ Conferido em 2026-10-30 no checkout local da branch: 45 de 45 testes passam; lin
 3. **Reconstrução do zero** (commit `3c78c94`), pedida pelo usuário e executada pelo Opus 5.5 em uma sessão separada: nova estrutura modular, fundamentação das saídas do modelo, defesa contra injeção de prompt, páginas por caso, 45 testes. Na reconstrução, a versão do Next.js subiu de 16.4.0 para 16.4.3, e a causa dessa mudança não foi confirmada.
 
 4. **Troca do provedor de LLM para o Gemini** (2026-10-31): a API da Anthropic não pôde ser vinculada ao projeto. A camada de análise ficou independente de provedor (`DossierOutputSchema`, `source: "ai"`), o cliente passou a `src/lib/analysis/gemini.ts`, o SDK da Anthropic foi removido, os textos da interface e da landing passaram a dizer Gemini e os testes foram ampliados para 57. A chamada real foi testada nos seis casos; o prompt foi ajustado para as cartas não citarem IDs internos de evidência.
+5. **Avaliação repetível** (2026-10-31): `npm run eval`, com avaliadores determinísticos, limites por caso e comparação com linha de base. Detalhes e primeiras execuções na seção 7.
 
 O histórico das versões está no git.
 
 ## 10. Próximos passos sugeridos
 
-1. Transformar a execução manual com o Gemini em uma avaliação repetível (casos com veredito esperado) para detectar regressões ao trocar de modelo ou de prompt, e fazer a revisão das cartas por falantes nativos.
+1. Quando a cota diária do modelo padrão voltar (ou com uma chave paga), rodar `npm run eval` no `gemini-3.5-flash`, corrigir o que reprovar (o `gemini-3.1-flash-lite` superestimou a confiança no CG-1045) e só então gravar a linha de base. Depois, revisar as cartas com falantes nativos.
 2. Persistência (por exemplo Postgres) para que um webhook gere um caso armazenado.
 3. Conectores reais de Auth0, PostHog, Zendesk e Stripe, depois Adyen e Braintree.
 4. Envio real pela API de disputas do processador, com revisão humana opcional antes do primeiro envio.

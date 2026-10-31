@@ -145,6 +145,27 @@ describe("groundDossier", () => {
     assert.ok(guardrails.length >= 4);
   });
 
+  it("keeps Terms of Service clause IDs as requirement citations but not as timeline refs", () => {
+    const c = demo("CG-1044");
+    const { dossier, guardrails } = groundDossier(
+      fakeOutput({
+        requirements: [{ requirement: "Refund terms disclosed", status: "met", note: "n", evidenceRefs: ["tos-6.1", "tos-acceptance", "made_up"] }],
+        timeline: [{ ref: "tos-6.1", title: "Clause", detail: "d", significance: "key" }],
+      }),
+      c,
+      computeSignals(c),
+    );
+    assert.deepEqual(dossier.requirements[0]!.evidenceRefs, ["tos-6.1", "tos-acceptance"]);
+    assert.equal(dossier.timeline.length, 0);
+    assert.ok(guardrails.some((g) => g.includes('"made_up"') && !g.includes("tos-6.1")));
+  });
+
+  it("names the requirement citations it removed", () => {
+    const c = demo("CG-1044");
+    const { guardrails } = groundDossier(fakeOutput(), c, computeSignals(c));
+    assert.ok(guardrails.some((g) => g.startsWith("Removed 1 requirement citation(s)") && g.includes('"made_up"')), guardrails.join(" | "));
+  });
+
   it("overrides a contest verdict when the merchant is at fault", () => {
     const c = demo("CG-1044");
     const { dossier, guardrails } = groundDossier(fakeOutput(), c, computeSignals(c));

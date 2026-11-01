@@ -9,7 +9,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { ConfigError, loadConfig, type FoundryConfig } from "../tools/foundry-image-mcp/config";
-import { buildRequest, FoundryError, generateImages } from "../tools/foundry-image-mcp/foundry";
+import { buildRequest, describeNetworkFailure, FoundryError, generateImages } from "../tools/foundry-image-mcp/foundry";
 import { createServer } from "../tools/foundry-image-mcp/server";
 
 // 1x1 transparent PNG.
@@ -89,6 +89,12 @@ describe("loadConfig", () => {
     assert.equal(loadConfig({ ...base, FOUNDRY_ENDPOINT: "http://127.0.0.1:9" }).endpoint, "http://127.0.0.1:9");
   });
 
+  it("accepts the full image-generation URL copied from the portal and keeps only the origin", () => {
+    const c = loadConfig({ ...base, FOUNDRY_ENDPOINT: "https://res-1234.services.ai.azure.com/openai/v1/images/generations" });
+    assert.equal(c.endpoint, "https://res-1234.services.ai.azure.com");
+    assert.equal(buildRequest(c, { prompt: "p" }).url, "https://res-1234.services.ai.azure.com/openai/v1/images/generations");
+  });
+
   it("validates numeric settings and honours an API version", () => {
     assert.throws(() => loadConfig({ ...base, FOUNDRY_TIMEOUT_MS: "-1" }), /positive/);
     assert.equal(loadConfig({ ...base, FOUNDRY_API_VERSION: "2025-04-01-preview" }).apiVersion, "2025-04-01-preview");
@@ -161,6 +167,20 @@ describe("generateImages against a stand-in Foundry", () => {
     await assert.rejects(generateImages(config(), { prompt: "p" }), (e: unknown) => e instanceof FoundryError && e.kind === "bad_response" && /no images/.test(e.message));
     respond = () => ({ status: 200, body: { data: [{ url: "https://example.com/x.png" }] } });
     await assert.rejects(generateImages(config(), { prompt: "p" }), (e: unknown) => e instanceof FoundryError && /returned a URL/.test(e.message));
+  });
+
+  it("hints at NODE_USE_ENV_PROXY only when a proxy is configured and Node would ignore it", () => {
+    const cfg = config({ endpoint: "https://res.services.ai.azure.com" });
+    const failure = Object.assign(new Error("fetch failed"), { cause: Object.assign(new Error("x"), { code: "ENOTFOUND" }) });
+    const plain = describeNetworkFailure(failure, cfg, {});
+    assert.match(plain, /\(ENOTFOUND\)/);
+    assert.match(plain, /allow res\.services\.ai\.azure\.com/);
+    assert.doesNotMatch(plain, /NODE_USE_ENV_PROXY/);
+    // undici reports a refused proxy tunnel with code 0 and the text only in the message.
+    const refused = Object.assign(new Error("fetch failed"), { cause: Object.assign(new Error("Request was cancelled."), { code: 0 }) });
+    assert.match(describeNetworkFailure(refused, cfg, {}), /\(Request was cancelled\.\)/);
+    assert.match(describeNetworkFailure(failure, cfg, { HTTPS_PROXY: "http://p:1" }), /NODE_USE_ENV_PROXY=1/);
+    assert.doesNotMatch(describeNetworkFailure(failure, cfg, { HTTPS_PROXY: "http://p:1", NODE_USE_ENV_PROXY: "1" }), /NODE_USE_ENV_PROXY/);
   });
 
   it("reports an unreachable host and mentions the network policy", async () => {

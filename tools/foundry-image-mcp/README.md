@@ -51,8 +51,13 @@ picked up when a session starts, so open a new session after changing it.
   run `npm install` once.
 - **Cloud sessions:** add the variables as secrets of the environment, make sure
   the environment installs the dependencies (`npm install`), and allow your
-  Foundry host (`<resource>.openai.azure.com`, or `*.services.ai.azure.com`) in
-  the environment's network policy, otherwise calls fail with a network error.
+  Foundry host (`<resource>.openai.azure.com`, or `<resource>.services.ai.azure.com`)
+  in the environment's network policy. A host the policy does not allow is
+  refused by the sandbox proxy and the call fails with a network error.
+  `.mcp.json` sets `NODE_USE_ENV_PROXY=1` because Node's built-in `fetch`
+  ignores the sandbox proxy otherwise.
+- `FOUNDRY_ENDPOINT` may be the base URL or the full
+  `.../openai/v1/images/generations` URL copied from the portal; only the origin is kept.
 
 Run it by hand with `npm run mcp:foundry-image`. Tests: `npm test`
 (`tests/foundry-image-mcp.test.ts`).

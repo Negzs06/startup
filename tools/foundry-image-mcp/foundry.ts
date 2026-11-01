@@ -72,6 +72,17 @@ function toFoundryError(status: number, text: string, retryAfter: string | null,
   return new FoundryError("bad_request", `Foundry rejected the request (HTTP ${status}${code ? `, ${code}` : ""}): ${message}`);
 }
 
+/** Explains a failed connection: the underlying cause, and the two usual sandbox reasons. */
+export function describeNetworkFailure(error: unknown, config: FoundryConfig, env: Record<string, string | undefined> = process.env): string {
+  const cause = error instanceof Error && error.cause instanceof Error ? ((error.cause as NodeJS.ErrnoException).code || error.cause.message) : undefined;
+  const host = new URL(config.endpoint).hostname;
+  const hints = [`If this runs in a sandbox, its network policy must allow ${host}.`];
+  if ((env.HTTPS_PROXY || env.https_proxy) && !env.NODE_USE_ENV_PROXY) {
+    hints.push("This process has a proxy configured, but Node's fetch ignores it unless NODE_USE_ENV_PROXY=1 is set.");
+  }
+  return `Could not reach Foundry (${cause ?? (error instanceof Error ? error.message : "unknown error")}). ${hints.join(" ")}`;
+}
+
 export async function generateImages(config: FoundryConfig, params: GenerateParams, fetchImpl: typeof fetch = fetch): Promise<GeneratedImage[]> {
   const { url, headers, body } = buildRequest(config, params);
 
@@ -80,7 +91,7 @@ export async function generateImages(config: FoundryConfig, params: GeneratePara
     response = await fetchImpl(url, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(config.timeoutMs) });
   } catch (error) {
     const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
-    throw new FoundryError("network", timedOut ? `Foundry did not answer within ${Math.round(config.timeoutMs / 1000)}s.` : `Could not reach Foundry: ${error instanceof Error ? error.message : "unknown error"}. If this runs in a sandbox, the network policy must allow ${new URL(config.endpoint).hostname}.`);
+    throw new FoundryError("network", timedOut ? `Foundry did not answer within ${Math.round(config.timeoutMs / 1000)}s.` : describeNetworkFailure(error, config));
   }
 
   const text = await response.text();

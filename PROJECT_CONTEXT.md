@@ -113,7 +113,7 @@ Mudanças feitas por causa dessas execuções: o prompt passou a exigir ID da di
 - **Verificado contra um stand-in local:** por MCP stdio de verdade (rotas, cabeçalhos, corpo, decodificação e gravação das imagens, mapeamento de erros, validação de argumentos, ausência de configuração).
 - **Verificado uma vez contra o Foundry real (2026-11-01):** com o deployment `gpt-image-2.5-sunburst`, a rota `/openai/v1/images/generations`, `size: "1024x1024"` e `quality: "low"`, o servidor devolveu um PNG 1024x1024 (cerca de 320 KB) em 12 segundos, e a imagem correspondia ao prompt. É uma chamada, em um deployment, no host `*.services.ai.azure.com`.
 - **Não verificado:** a rota versionada com `api-version`, `n` maior que 1, `output_format` diferente de png, `background`, outros valores de `size` e `quality`, outros deployments, e os mapeamentos de erro contra corpos de erro reais do Foundry.
-- **Limites:** só gera imagens (sem edição), só autenticação por chave (sem Microsoft Entra) e é stdio: roda onde o cliente o inicia, não é um serviço de rede. Em sessões na nuvem, o ambiente precisa ter as variáveis como segredos, instalar as dependências e liberar o host do Foundry na política de rede.
+- **Limites:** só gera imagens (sem edição), só autenticação por chave (sem Microsoft Entra) e é stdio: roda onde o cliente o inicia, não é um serviço de rede. Em sessões na nuvem, o ambiente precisa ter as variáveis e liberar o host do Foundry na política de rede. As dependências do servidor são instaladas por um launcher `sh` no `.mcp.json` na primeira partida (3 s, medido num clone limpo), então não é preciso Setup script. Isso foi necessário depois que uma sessão nova falhou ao conectar o servidor por falta de `node_modules`.
 
 ### Dados de demonstração
 

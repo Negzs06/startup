@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "foundry-image": {
-      "command": "npx",
-      "args": ["tsx", "tools/foundry-image-mcp/server.ts"],
+      "command": "sh",
+      "args": [
+        "-c",
+        "[ -x tools/foundry-image-mcp/node_modules/.bin/tsx ] || npm ci --prefix tools/foundry-image-mcp --no-audit --no-fund --loglevel=error >&2; exec tools/foundry-image-mcp/node_modules/.bin/tsx tools/foundry-image-mcp/server.ts"
+      ],
       "env": {
         "FOUNDRY_ENDPOINT": "${FOUNDRY_ENDPOINT}",
         "FOUNDRY_API_KEY": "${FOUNDRY_API_KEY}",

@@ -47,10 +47,14 @@ explains which ones to set.
 The repository's `.mcp.json` registers the server as `foundry-image`. It is
 picked up when a session starts, so open a new session after changing it.
 
-- **Local:** export the three variables (or put them in your shell profile) and
-  run `npm install` once.
-- **Cloud sessions:** add the variables as secrets of the environment, make sure
-  the environment installs the dependencies (`npm install`), and allow your
+- **Local:** export the three variables (or put them in your shell profile).
+- **Dependencies:** the server has its own `package.json`, and `.mcp.json`
+  starts it through a small `sh` launcher that runs `npm ci` for just those
+  packages if they are missing (about 3 seconds, measured from a clean clone
+  with an empty npm cache). So a fresh session needs no setup script and no
+  root `npm install`. This needs `sh`, npm and access to the npm registry; on
+  Windows without `sh`, run the server by hand or adapt the command.
+- **Cloud sessions:** add the variables as environment variables of the environment and allow your
   Foundry host (`<resource>.openai.azure.com`, or `<resource>.services.ai.azure.com`)
   in the environment's network policy. A host the policy does not allow is
   refused by the sandbox proxy and the call fails with a network error.

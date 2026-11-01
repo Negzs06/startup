@@ -1,0 +1,12 @@
+{
+  "name": "foundry-image-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server (stdio) that generates images with an OpenAI image model deployed in Microsoft Foundry. Has its own dependencies so .mcp.json can install just these on first start.",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.7"
+  }
+}

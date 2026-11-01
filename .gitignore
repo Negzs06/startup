@@ -45,3 +45,6 @@ next-env.d.ts
 
 # evaluation outputs (full dossiers); evals/baseline.json is committed
 /evals/results/
+
+# images written by the foundry-image MCP server
+/generated-images/

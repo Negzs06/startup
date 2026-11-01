@@ -106,6 +106,14 @@ Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, componen
 
 Mudanças feitas por causa dessas execuções: o prompt passou a exigir ID da disputa, ID da transação e valor na carta; a fundamentação passou a aceitar IDs de cláusulas dos Termos nas citações dos requisitos (são registros reais; a linha do tempo continua exigindo evidências com data) e a nota de fundamentação passou a listar quais citações foram removidas. O prompt e a regra foram ajustados com os mesmos seis casos que os avaliam, então não há avaliação independente dessas duas mudanças.
 
+### Servidor MCP de geração de imagens (Microsoft Foundry)
+
+`tools/foundry-image-mcp/` é um servidor MCP (stdio) que permite a um cliente MCP, como o Claude Code, gerar imagens com um modelo de imagem da OpenAI implantado no Microsoft Foundry. Ele é independente do app do ChargeGuard e só divide o repositório; pode ir para um repositório próprio. Ferramenta: `generate_image` (prompt, n de 1 a 4, size, quality, output_format, background). Configuração por variáveis de ambiente (`FOUNDRY_ENDPOINT`, `FOUNDRY_API_KEY`, `FOUNDRY_IMAGE_DEPLOYMENT`, opcionalmente `FOUNDRY_API_VERSION`); o `.mcp.json` da raiz registra o servidor, e ele só aparece a partir de uma sessão nova.
+
+- **Verificado:** o servidor contra um stand-in local do endpoint, por MCP stdio de verdade (rotas, cabeçalhos, corpo, decodificação e gravação das imagens, mapeamento de erros, validação de argumentos, ausência de configuração).
+- **Não verificado:** qualquer chamada ao Foundry real, por falta de credenciais. Não se sabe qual das duas rotas (`/openai/v1` ou a versionada com `api-version`) o seu deployment aceita, nem quais parâmetros o modelo aceita. O modelo `gpt-image-2.5-flare` consta no catálogo do Foundry, mas sua disponibilidade geral não foi confirmada.
+- **Limites:** só gera imagens (sem edição), só autenticação por chave (sem Microsoft Entra) e é stdio: roda onde o cliente o inicia, não é um serviço de rede. Em sessões na nuvem, o ambiente precisa ter as variáveis como segredos, instalar as dependências e liberar o host do Foundry na política de rede.
+
 ### Dados de demonstração
 
 Seis disputas abertas de um comerciante SaaS fictício, a Lumen Analytics, na data de 28/10/2026. Todas as pessoas, bancos e empresas são fictícios.
@@ -156,7 +164,7 @@ Sem configuração, o app roda com dados de demonstração e dossiê por regras.
 
 ### Verificação mais recente
 
-Conferido em 2026-10-31 no checkout local da branch: 88 de 88 testes passam; lint, `npm run typecheck` e `next build` passam. A análise com o Gemini foi exercitada à mão e pela avaliação, ver a seção 8 e a avaliação acima.
+Conferido em 2026-10-31 no checkout local da branch: 107 de 107 testes passam; lint, `npm run typecheck` e `next build` passam. A análise com o Gemini foi exercitada à mão e pela avaliação, ver a seção 8 e a avaliação acima.
 
 ---
 
@@ -183,6 +191,7 @@ Conferido em 2026-10-31 no checkout local da branch: 88 de 88 testes passam; lin
 
 4. **Troca do provedor de LLM para o Gemini** (2026-10-31): a API da Anthropic não pôde ser vinculada ao projeto. A camada de análise ficou independente de provedor (`DossierOutputSchema`, `source: "ai"`), o cliente passou a `src/lib/analysis/gemini.ts`, o SDK da Anthropic foi removido, os textos da interface e da landing passaram a dizer Gemini e os testes foram ampliados para 57. A chamada real foi testada nos seis casos; o prompt foi ajustado para as cartas não citarem IDs internos de evidência.
 5. **Avaliação repetível** (2026-10-31): `npm run eval`, com avaliadores determinísticos, limites por caso e comparação com linha de base. Detalhes e primeiras execuções na seção 7.
+6. **Servidor MCP de geração de imagens com o Microsoft Foundry** (2026-11-01): `tools/foundry-image-mcp/`, ver a seção 7.
 
 O histórico das versões está no git.
 

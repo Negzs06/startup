@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
-    "eval": "tsx evals/run.ts"
+    "eval": "tsx evals/run.ts",
+    "mcp:foundry-image": "tsx tools/foundry-image-mcp/server.ts"
   },
   "dependencies": {
     "@google/genai": "^2.32.0",
@@ -25,6 +26,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

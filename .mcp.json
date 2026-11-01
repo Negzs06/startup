@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "foundry-image": {
+      "command": "npx",
+      "args": ["tsx", "tools/foundry-image-mcp/server.ts"],
+      "env": {
+        "FOUNDRY_ENDPOINT": "${FOUNDRY_ENDPOINT}",
+        "FOUNDRY_API_KEY": "${FOUNDRY_API_KEY}",
+        "FOUNDRY_IMAGE_DEPLOYMENT": "${FOUNDRY_IMAGE_DEPLOYMENT}",
+        "FOUNDRY_API_VERSION": "${FOUNDRY_API_VERSION:-}"
+      }
+    }
+  }
+}

@@ -68,12 +68,17 @@ Run it by hand with `npm run mcp:foundry-image`. Tests: `npm test`
   over real stdio MCP: request URL, headers and body for both routes, image
   decoding and saving, every error mapping, argument validation, and the
   missing-configuration path. 19 automated tests.
-- **Not verified:** any call to the real Foundry service. No credentials were
-  available when this was written. In particular, which of the two routes your
-  deployment accepts, which `api-version` the newest image models need, which
-  arguments a given model accepts (`size`, `quality`, `background`), and the
-  exact name and availability of the model. A catalog listing for
-  `gpt-image-2.5-flare` exists, but its general availability was not confirmed.
+- **Verified once against the real service (2026-11-01):** with a deployment
+  named `gpt-image-2.5-sunburst`, the `/openai/v1/images/generations` route
+  (no `FOUNDRY_API_VERSION`), `size: "1024x1024"` and `quality: "low"`, through
+  the stdio server and an MCP client, returned a 1024x1024 PNG (about 320 KB) in
+  12 seconds, and the image matched the prompt. That is one call on one
+  deployment of a resource whose endpoint was on the `*.services.ai.azure.com`
+  host.
+- **Not verified:** the versioned `/openai/deployments/{name}/...?api-version=`
+  route, `n` above 1, `output_format` other than png, `background`, other
+  `size` and `quality` values, other deployments, and the error mappings
+  against real Foundry error bodies (they are only tested against a stand-in).
 - **Not supported:** image editing, Microsoft Entra (token) authentication, and
   responses that return a URL instead of base64.
 - **It is a stdio server:** it runs where the MCP client starts it. It is not a

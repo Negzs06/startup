@@ -110,8 +110,9 @@ Mudanças feitas por causa dessas execuções: o prompt passou a exigir ID da di
 
 `tools/foundry-image-mcp/` é um servidor MCP (stdio) que permite a um cliente MCP, como o Claude Code, gerar imagens com um modelo de imagem da OpenAI implantado no Microsoft Foundry. Ele é independente do app do ChargeGuard e só divide o repositório; pode ir para um repositório próprio. Ferramenta: `generate_image` (prompt, n de 1 a 4, size, quality, output_format, background). Configuração por variáveis de ambiente (`FOUNDRY_ENDPOINT`, `FOUNDRY_API_KEY`, `FOUNDRY_IMAGE_DEPLOYMENT`, opcionalmente `FOUNDRY_API_VERSION`); o `.mcp.json` da raiz registra o servidor, e ele só aparece a partir de uma sessão nova.
 
-- **Verificado:** o servidor contra um stand-in local do endpoint, por MCP stdio de verdade (rotas, cabeçalhos, corpo, decodificação e gravação das imagens, mapeamento de erros, validação de argumentos, ausência de configuração).
-- **Não verificado:** qualquer chamada ao Foundry real, por falta de credenciais. Não se sabe qual das duas rotas (`/openai/v1` ou a versionada com `api-version`) o seu deployment aceita, nem quais parâmetros o modelo aceita. O modelo `gpt-image-2.5-flare` consta no catálogo do Foundry, mas sua disponibilidade geral não foi confirmada.
+- **Verificado contra um stand-in local:** por MCP stdio de verdade (rotas, cabeçalhos, corpo, decodificação e gravação das imagens, mapeamento de erros, validação de argumentos, ausência de configuração).
+- **Verificado uma vez contra o Foundry real (2026-11-01):** com o deployment `gpt-image-2.5-sunburst`, a rota `/openai/v1/images/generations`, `size: "1024x1024"` e `quality: "low"`, o servidor devolveu um PNG 1024x1024 (cerca de 320 KB) em 12 segundos, e a imagem correspondia ao prompt. É uma chamada, em um deployment, no host `*.services.ai.azure.com`.
+- **Não verificado:** a rota versionada com `api-version`, `n` maior que 1, `output_format` diferente de png, `background`, outros valores de `size` e `quality`, outros deployments, e os mapeamentos de erro contra corpos de erro reais do Foundry.
 - **Limites:** só gera imagens (sem edição), só autenticação por chave (sem Microsoft Entra) e é stdio: roda onde o cliente o inicia, não é um serviço de rede. Em sessões na nuvem, o ambiente precisa ter as variáveis como segredos, instalar as dependências e liberar o host do Foundry na política de rede.
 
 ### Dados de demonstração
@@ -164,7 +165,7 @@ Sem configuração, o app roda com dados de demonstração e dossiê por regras.
 
 ### Verificação mais recente
 
-Conferido em 2026-10-31 no checkout local da branch: 107 de 107 testes passam; lint, `npm run typecheck` e `next build` passam. A análise com o Gemini foi exercitada à mão e pela avaliação, ver a seção 8 e a avaliação acima.
+Conferido em 2026-10-31 no checkout local da branch: 109 de 109 testes passam; lint, `npm run typecheck` e `next build` passam. A análise com o Gemini foi exercitada à mão e pela avaliação, ver a seção 8 e a avaliação acima.
 
 ---
 

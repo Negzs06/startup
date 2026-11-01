@@ -1,10 +1,20 @@
-import { Instrument_Serif } from "next/font/google";
+import { Archivo, Courier_Prime } from "next/font/google";
 
-/** Display face for the landing page only; the dashboard keeps Geist. */
-export const displayFont = Instrument_Serif({
-  weight: "400",
-  style: ["normal", "italic"],
+/**
+ * Landing-only faces; the dashboard keeps Geist.
+ * Archivo is variable on weight and width: condensed black for display, normal
+ * width for text. Courier Prime is the typewriter layer for records.
+ */
+export const sansFont = Archivo({
   subsets: ["latin"],
-  variable: "--font-lp-display",
+  axes: ["wdth"],
+  variable: "--font-lp-sans",
+  display: "swap",
+});
+
+export const monoFont = Courier_Prime({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-lp-mono",
   display: "swap",
 });

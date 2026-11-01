@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import "@/components/landing/landing.css";
-import { displayFont } from "@/components/landing/fonts";
+import { getCe3Cases, getSceneRecords } from "@/components/landing/data";
+import { monoFont, sansFont } from "@/components/landing/fonts";
 import { LandingMotion } from "@/components/landing/landing-motion";
-import { FinalCta, Pricing, Targets, WhyGemini } from "@/components/landing/sections";
+import { Ce3Room, Filed, FinalCta, Hero, Pipeline, Pricing, Problem, Targets, Verdict, WhyGemini } from "@/components/landing/rooms";
 import { SiteFooter, SiteHeader } from "@/components/landing/site-chrome";
-import { Stage } from "@/components/landing/stage";
-import { Filing, Hero, HowItWorks, Problem, Verdict } from "@/components/landing/story";
 
 const description =
-  "ChargeGuard AI turns a dispute webhook into a bank-grade evidence dossier: audited against Visa Compelling Evidence 3.0, argued by Gemini, written in the issuing bank's language.";
+  "ChargeGuard AI answers chargebacks with evidence: a dispute webhook opens the case, the records are audited against Visa Compelling Evidence 3.0, Gemini writes the dossier in the issuing bank's language, and it is filed.";
 
 // Absolute URLs for the Open Graph image. Set SITE_URL in production; Vercel's own URL is used when present.
 const siteUrl =
@@ -19,7 +18,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   description,
   openGraph: {
-    title: "ChargeGuard AI: autonomous chargeback representment",
+    title: "ChargeGuard AI: chargebacks, answered with evidence",
     description,
     type: "website",
     images: [
@@ -27,7 +26,7 @@ export const metadata: Metadata = {
         url: "/images/landing/og.jpg",
         width: 1200,
         height: 630,
-        alt: "Luminous fragments converging into a circular seal on a dark navy background",
+        alt: "A spilled case file on a paper table: forms, receipts, a glassine envelope, a kraft tag and a rubber stamp",
       },
     ],
   },
@@ -35,16 +34,18 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
+  const records = getSceneRecords();
+  const ce3Cases = getCe3Cases();
   return (
-    <div className={`landing ${displayFont.variable}`}>
-      <Stage />
+    <div className={`landing ${sansFont.variable} ${monoFont.variable}`}>
       <SiteHeader />
       <main id="main" tabIndex={-1}>
-        <Hero />
+        <Hero records={records} />
         <Problem />
-        <HowItWorks />
+        <Pipeline />
+        <Ce3Room cases={ce3Cases} />
         <Verdict />
-        <Filing />
+        <Filed />
         <WhyGemini />
         <Targets />
         <Pricing />

@@ -1,95 +1,92 @@
-# Landing page concept — "Chain of Custody"
+# Landing page concept, v2: "The evidence room"
 
-## The idea in one line
+## Direction and why
 
-A chargeback scatters the truth across four systems; ChargeGuard gathers every
-fragment back into one sealed, verifiable record. The page *is* that act of
-gathering: the visitor scrolls a cloud of loose evidence into a seal.
+**Option A, light mode, physical.** A chargeback is won or lost on paper: forms,
+receipts, logs, a seal. So the page is a table in an evidence room, lit like a
+product shoot. Warm paper and black ink read as records, not as "AI", and a single
+vermilion stamp colour makes the threat impossible to miss. We rejected the dark
+option because a dark ground pulls every 3D object toward the glossy-orb look v1
+was criticised for.
 
-## Visual metaphor
+## Palette (scoped to `.landing`; the dashboard keeps its own tokens)
 
-- **Fragments** — a field of luminous particles. At rest they drift, unordered,
-  a few of them warm amber: the dispute, the threat, the missing context.
-- **Strands** — as the visitor scrolls, particles organise into curved strands
-  (one per evidence source: logins, product usage, support tickets, contract).
-- **Seal** — the strands close into a precise seal of concentric rings and
-  radial hairlines: the verified verdict.
-- **Filing** — the seal compresses and leaves along a single line: the dossier
-  is filed (in this MVP, filing is simulated, and the copy says so).
-
-The fractured glass card (a generated still) stands for the chargeback itself:
-a payment that was fine until it cracked.
-
-## Palette (scoped to `.landing`, the dashboard keeps its own tokens)
-
-| Token | Role | Value |
+| Token | Hex | Role |
 | --- | --- | --- |
-| `--lp-ink` | Page ground, deep ink navy | `oklch(0.14 0.03 262)` |
-| `--lp-ink-2` | Raised surfaces | `oklch(0.19 0.035 262)` |
-| `--lp-paper` | Primary text, "bone" paper | `oklch(0.95 0.012 85)` |
-| `--lp-muted` | Secondary text | `oklch(0.76 0.02 255)` |
-| `--lp-seal` | Verified / evidence, the brand teal brightened for dark ground | `oklch(0.82 0.1 180)` |
-| `--lp-ember` | Threat / dispute, used sparingly | `oklch(0.78 0.15 60)` |
-| `--lp-rule` | Hairlines | `oklch(1 0 0 / 12%)` |
+| `--paper` | `#E9E4D8` | Main room, the table |
+| `--paper-2` | `#DED7C6` | Ruled lines, sheet edges |
+| `--ink` | `#111111` | Type, the ink room |
+| `--vermilion` | `#E5391C` | The dispute, the threat, the stamp. Room colour for "the problem" and the CTA |
+| `--verified` | `#1D5A3C` | Ledger green, used only where something is verified (CE 3.0 met, contest) |
+| `--manila` | `#D8C79E` | Folder, tags (in images and 3D only) |
+| `--brass` | `#A8834A` | The seal (in images and 3D only) |
 
-Two signal colours only: amber means *at risk*, teal means *verified*. Nothing
-else is coloured. No gradients beyond light falloff.
+No gradients, no glow, no transparency effects on type.
 
-## Type system
+## Type
 
-- **Display:** Instrument Serif (regular + italic) — an editorial, legal-brief
-  voice for headlines; italics carry the emotional word in each headline.
-- **Text:** Geist (already in the app).
-- **Evidence:** Geist Mono for record IDs, timestamps, reason codes and step
-  numbers — the "forensic" layer, always small, tracked, uppercase.
-- Fluid scale with `clamp()`; display sizes up to ~9rem on wide screens.
+- **Display:** Archivo (variable, `wdth` 62–125, `wght` 100–900) set condensed and
+  black, very tight, up to ~20vw for a single word. One family, so one font file
+  serves display and body (Archivo at normal width, 400).
+- **Record layer:** Courier Prime, a typewriter face, used as content: case IDs,
+  timestamps, reason codes, ledger rows, the form fields. Never as decoration.
+- Scale contrast is deliberate: 11px record captions next to 20vw words.
 
-## Motion language
+## The physical story (3D, one scene, one camera path)
 
-- **Precise, not bouncy.** One custom ease (`expo.out`-like) for reveals,
-  linear scrub for scroll-linked state.
-- **Lines draw, text rises from a mask, numbers are set like type.** No
-  spinning, no bouncing, no glow pulses.
-- **Scroll drives the 3D state**, never the reverse: the scene interpolates
-  between four shapes (fragments → strands → seal → filed) from the scroll
-  position of the narrative sections.
-- **Cursor:** the particle field leans gently away from the pointer (pointer
-  devices only). Primary buttons are magnetic by a few pixels. No custom cursor
-  replacing the system one: it hurts usability more than it adds.
-- **Page load:** the headline lines rise in sequence over ~1s (pure CSS, so it
-  runs before any JS and is skipped under reduced motion).
+One three.js scene of real-scale objects on a table, lit with a softbox key from the
+left, a rim light from behind-right, a local `RoomEnvironment` (no downloaded HDRI),
+and soft contact shadows on a shadow-catcher plane. Materials use the generated
+cotton and manila textures. Every word on the paper is drawn in code from the demo
+data (CG-1041), never generated by the image model.
 
-## Scroll narrative
+| State | Scene | Camera |
+| --- | --- | --- |
+| 0 · Disputed | A spilled case file: dispute notice, carbon-copy logs, two receipts, three kraft tags, a glassine envelope, an open manila folder, a brass seal standing aside | High, oblique, wide |
+| 1 · Webhook | The dispute notice lifts off the table and turns to camera | Dollies in to the notice |
+| 2 · Records | Logs and receipts square into a stack on the folder | Pulls back over the stack |
+| 3 · CE 3.0 | The three tags stand in a row: the prior transactions that qualify | Drops to tag height |
+| 4 · Dossier | Everything goes into the folder; the cover closes | Rises, three-quarter view |
+| 5 · Verdict | The brass seal presses the cover; an ink mark bleeds into the manila fibres (shader) | Close over the seal |
+| 6 · Filed | The closed file slides out of frame | Follows, then lets it go |
 
-1. **Hero — the threat (unease).** Loose fragments drift; a few glow amber.
-   "Every chargeback is a *case*. Most merchants lose it by default."
-2. **The problem — the crack.** The fractured glass card. The four facts
-   (70%+ friendly fraud, ~$48B, 0.9% threshold, CE 3.0's 120-day history), set
-   large, labelled as industry estimates.
-3. **How it works — evidence assembling (focus).** A pinned sequence on wide
-   screens: webhook → records gathered → CE 3.0 audit → dossier. Particles
-   form strands. On small screens and under reduced motion it is a plain
-   ordered list.
-4. **The verdict — relief, and restraint.** The strands close into the seal.
-   Contest *or accept*: ChargeGuard recommends accepting when the merchant
-   missed a refund inside its own window.
-5. **Filing.** The seal leaves along a line: "Filed through the processor's
-   Dispute API — simulated in this prototype."
-6. **Why Gemini, targets, pricing, CTA — calm.** The scene settles; the page
-   becomes a quiet editorial document. Targets are labelled as targets.
+Shader: the seal mark is a canvas-drawn stamp masked by a fibrous noise threshold that
+grows from the contact point, so ink seems to soak into paper rather than fade in.
+Pointer: the table tilts toward the pointer with spring inertia (fine pointers only).
+Depth: in the hero the 20vw word sits behind the objects and an outlined copy of it
+sits in front of them.
 
-## Honesty rules applied
+## Scroll storyboard (ranges in viewport heights, desktop)
 
-No logos, testimonials, "trusted by", awards or live metrics. Targets (>70%
-win rate, <60 min) are always labelled as targets. The demo link is described
-as demo data. Industry figures are labelled as estimates.
+| Range | Room | What moves |
+| --- | --- | --- |
+| 0–1 | Hero, paper | Page load: header rule draws, the giant word rises line by line, the canvas fades in. Pointer tilt. |
+| 1–2 | Hero → problem | The giant word scales into the stem of its "I" until the stem fills the screen and turns vermilion: the word becomes the next room's wall. The scene fades. |
+| 2–4 | Problem, vermilion | Oversized numerals count up as they enter; ruled ledger rows; a receipt crosses the boundary into the next room. A marquee of reason codes and programmes speeds up and slows with scroll velocity. |
+| 4–9 | Pipeline, paper, sticky | One continuous camera move, states 1→4. A five-line form on the left fills line by line; a flip counter shows the step; the step copy is revealed by line masks in step with the camera. |
+| 9–11 | CE 3.0, ink room | Opens as a door (clip-path from a centre slit). Prior transactions hang as tags on a day scale; the 120–365-day window draws in. Interactive: switch case, select a tag, read why it does or does not qualify, all computed client-side by `src/lib/ce3/audit.ts`. |
+| 11–13 | Verdict, paper | The paper room slides over the ink room like a sheet. Scene states 4→5: the seal presses, ink bleeds. Ledger: CG-1041 contest, CG-1044 accept. |
+| 13–14 | Filed | Scene 5→6: the file leaves the frame. Copy states that submission is simulated. |
+| 14+ | Memo, targets, ledger, CTA | Why Gemini as a typed memo; targets as flip counters marked TARGET; pricing as a ledger; CTA in vermilion where the stamp lands on the button before routing to /dashboard. |
 
 ## Fallbacks
 
-- **No WebGL / canvas fails / slow device:** the generated poster image of the
-  converged seal sits under the canvas and is what you see; the canvas fades
-  in only after its first frame.
-- **Reduced motion:** no smooth scroll, no pinning, no scrubbed scene — the
-  canvas is not loaded at all; the poster is shown; reveals are disabled.
-- **JS animation libraries fail:** all content is in the server HTML and
-  visible by default; animations only ever add motion to visible content.
+- **Reduced motion:** no Lenis, no GSAP timelines, no scene. The hero shows the
+  generated photograph of the spilled file under the giant word; the pipeline is a
+  plain ordered list; the verdict and filed sections show the closed-file photograph
+  and the embosser cut-out. CE 3.0 stays fully interactive (it is not motion).
+- **No WebGL, software WebGL, Save-Data, scene chunk fails:** same static composition.
+  `?webgl=force` loads the scene anyway for testing.
+- **No JavaScript:** all content is in the server HTML and readable; no element
+  starts hidden in CSS.
+
+## What changed from v1 and why
+
+| v1 | v2 | Why |
+| --- | --- | --- |
+| Navy, teal, amber, glowing particle orb | Paper, ink, vermilion, physical objects | Particle glow is the most generic AI visual; the product is about evidence, so show evidence |
+| One fixed poster behind every section | Rooms with their own grounds; the scene is visible only where it tells the story | Sections were interchangeable |
+| Prompts: "abstract cinematic 3D render, luminous, premium" | Studio briefs: lens, light, materials, wear, hex palette, a shared style paragraph | Generic words make the generic image |
+| Italic serif accent words, mono eyebrows, bordered cards | Condensed grotesk at 20vw, typewriter records as content, ruled forms and ledgers | Template tells |
+| Fade-up reveals | Zoom-into-letter transition, door and sheet transitions, line masks, flip counters, velocity marquee, scrubbed camera | Motion has to carry the story |
+| Text slid under a translucent header | Solid header | Collision bug |

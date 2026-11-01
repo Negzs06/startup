@@ -49,8 +49,11 @@ export type ParticleSceneOptions = {
   count: number;
   maxPixelRatio: number;
   onFirstFrame?: () => void;
-  /** Called once if the device cannot keep up and quality is lowered. */
-  onDegrade?: () => void;
+  /**
+   * Called when the device cannot keep up: "reduced" after quality is lowered
+   * once, "off" if it is still too slow afterwards (the caller should dispose).
+   */
+  onDegrade?: (level: "reduced" | "off") => void;
 };
 
 const STRANDS = 7;
@@ -386,6 +389,7 @@ export function createParticleScene(canvas: HTMLCanvasElement, options: Particle
   let elapsed = 0;
   let firstFrame = false;
   let degraded = false;
+  let gaveUp = false;
   const frameTimes: number[] = [];
 
   function resize(width: number, height: number) {
@@ -409,23 +413,35 @@ export function createParticleScene(canvas: HTMLCanvasElement, options: Particle
     if (degraded) return;
     degraded = true;
     pixelRatio = 1;
-    geometry.setDrawRange(0, Math.floor(options.count * 0.55));
+    geometry.setDrawRange(0, Math.floor(options.count * 0.5));
     resize(viewWidth, viewHeight);
-    options.onDegrade?.();
+    options.onDegrade?.("reduced");
   }
 
   function frame(now: number) {
-    raf = 0;
-    if (!running) return;
+    // -1 marks "inside a frame" so callbacks fired from here (onFirstFrame →
+    // setTarget → kick) cannot start a second loop.
+    raf = -1;
+    if (!running) {
+      raf = 0;
+      return;
+    }
     const dt = last ? Math.min((now - last) / 1000, 0.1) : 1 / 60;
     last = now;
 
-    // Adaptive quality: if the first ~2 seconds run well below 45fps, lower it once.
-    if (!degraded && frameTimes.length < 120) {
+    // Adaptive quality, checked over every window of 90 rendered frames: below
+    // ~45fps lower the quality once; below ~30fps after that, report "off" so the
+    // caller can dispose the scene and leave the poster.
+    if (!gaveUp) {
       frameTimes.push(dt);
-      if (frameTimes.length === 120) {
-        const sorted = [...frameTimes].sort((a, b) => a - b);
-        if (sorted[60] > 1 / 45) degrade();
+      if (frameTimes.length === 90) {
+        const median = [...frameTimes].sort((a, b) => a - b)[45];
+        frameTimes.length = 0;
+        if (!degraded && median > 1 / 45) degrade();
+        else if (degraded && median > 1 / 30) {
+          gaveUp = true;
+          options.onDegrade?.("off");
+        }
       }
     }
 
@@ -443,6 +459,7 @@ export function createParticleScene(canvas: HTMLCanvasElement, options: Particle
       current.opacity = 0;
       renderer.clear();
       last = 0;
+      raf = 0;
       return;
     }
 
@@ -464,11 +481,14 @@ export function createParticleScene(canvas: HTMLCanvasElement, options: Particle
     const p = current.progress;
     const sealed = smooth(1.55, 2.0, p) * (1 - smooth(2.15, 2.55, p)) * current.opacity;
     const scale = u.uScale.value as number;
+    sealLines.visible = sealed > 0.002;
     sealLines.scale.setScalar(scale);
     sealLines.rotation.z = elapsed * 0.045;
     (sealLines.material as LineBasicMaterial).opacity = sealed * 0.32;
+    const glowOpacity = smooth(1.3, 2.0, p) * (1 - smooth(2.2, 2.7, p)) * current.opacity;
+    glow.visible = glowOpacity > 0.002;
     glow.scale.setScalar(scale);
-    (glow.material as ShaderMaterial).uniforms.uOpacity.value = smooth(1.3, 2.0, p) * (1 - smooth(2.2, 2.7, p)) * current.opacity;
+    (glow.material as ShaderMaterial).uniforms.uOpacity.value = glowOpacity;
 
     renderer.render(scene, camera);
     if (!firstFrame) {
@@ -505,14 +525,14 @@ export function createParticleScene(canvas: HTMLCanvasElement, options: Particle
     setRunning(next) {
       running = next;
       if (next) kick();
-      else if (raf) {
+      else if (raf > 0) {
         cancelAnimationFrame(raf);
         raf = 0;
       }
     },
     dispose() {
       running = false;
-      if (raf) cancelAnimationFrame(raf);
+      if (raf > 0) cancelAnimationFrame(raf);
       geometry.dispose();
       material.dispose();
       sealLines.geometry.dispose();

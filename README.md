@@ -30,6 +30,48 @@ Copy `.env.example` to `.env.local` to enable the rest:
 | `GEMINI_MODEL` | Optional model override. Defaults to `gemini-3.5-flash`; Gemini model IDs change often, so confirm it against the models your key can use. |
 | `STRIPE_WEBHOOK_SECRET` | Signing secret for `POST /api/webhooks/stripe`. The route returns 503 without it. |
 
+## Landing page
+
+The landing (`src/app/page.tsx`, `src/components/landing/`) tells one story, "chain
+of custody": loose evidence fragments are gathered into strands, the strands close
+into a seal (the verdict) and the seal leaves along a line (filing). The concept,
+palette, type and motion rules are in `docs/landing-concept.md`.
+
+- **Stack:** the page is a statically prerendered Server Component. Two small client
+  islands add behaviour: `scene-stage.tsx` (the 3D scene) and `landing-motion.tsx`
+  (pipeline step highlighting, magnetic buttons, smooth scroll). Added dependencies:
+  `three` (the scene, no React wrapper) and `lenis` (smooth scrolling). Display face:
+  Instrument Serif via `next/font`. All landing tokens live under `.landing` in
+  `landing.css`, so the dashboard is unchanged (verified pixel-identical, light and dark).
+- **3D:** `particle-scene.ts` is one `THREE.Points` draw call. Each particle carries
+  four target positions as attributes and the vertex shader blends them from a single
+  progress uniform; hairline rings and a glow quad sharpen the seal. Sections opt in
+  with `data-scene="progress offsetX opacity"`, and the stage maps the scroll position
+  between them. The module is loaded with a dynamic `import()` on idle, so three.js
+  is never in the initial bundle. Pixel ratio is capped at 1.5, the particle count is
+  18k on desktop-class devices and 7k on small, ≤4-core or ≤4 GB devices, quality
+  drops once (half the particles, DPR 1) and then the scene switches off if rolling
+  90-frame windows stay under 45 and then 30 fps, rendering stops while the tab is
+  hidden or the scene is fully faded (opaque sections cover it).
+- **Fallbacks:** a generated poster image is always server-rendered under the canvas.
+  The scene is not loaded at all with `prefers-reduced-motion: reduce`, Save-Data,
+  no WebGL, or a software WebGL renderer (SwiftShader/llvmpipe; add `?webgl=force`
+  to the URL to test the scene there anyway); then the poster is what you see. Under
+  reduced motion there is also no smooth scroll, no load choreography and no scroll
+  reveals. Reveals use CSS scroll-driven animations only where supported; everything
+  is visible in the server HTML, so the page reads the same with JavaScript off.
+  Smooth scroll uses native scrolling underneath: keyboard scrolling and find-in-page
+  work, and in-page links still update the hash and move focus to their target.
+- **Images:** AI-generated with the `foundry-image` MCP tool; prompts, count and
+  processing are in `public/images/landing/README.md`.
+- **Measured** (production build, local, Chromium): initial JS for `/` 146.5 KB
+  transferred (previous landing: 139.6 KB); after idle +10 KB (Lenis) and, only when
+  the scene runs, +133 KB (three.js). CLS 0. Without the scene, 60 fps while scrolling
+  through the story with no long tasks. The scene could only be measured on SwiftShader
+  (no GPU in the build environment): about 20 fps at 1440×900 and 58 fps at 390×844,
+  which is why software renderers now get the poster. Real-GPU frame rates, Safari,
+  Firefox and a Lighthouse run were not measured.
+
 ## What is real and what is a stub
 
 **Real and tested**
@@ -164,7 +206,8 @@ src/lib/analysis/      Signals, prompt, Gemini call, grounding, rule-based dossi
 src/lib/demo/          Demo case files, ToS, KPI history
 src/app/api/           analyze + Stripe webhook route handlers
 src/app/dashboard/     Queue + KPI page and case view
-src/components/        Landing, dashboard and ui components
+src/components/        Landing (3D scene, sections, motion), dashboard and ui components
+docs/                  Landing page concept
 tests/                 CE 3.0, Stripe webhook, analysis, Gemini client, grader and metrics tests
 evals/                 Live evaluation: expectations, graders, report, runner
 ```

@@ -5,10 +5,23 @@ import type { ParticleScene, SceneState } from "./particle-scene";
 
 type Stop = SceneState & { pos: number };
 
-function webglAvailable() {
+const isForced = () => new URLSearchParams(window.location.search).get("webgl") === "force";
+
+/**
+ * WebGL with a hardware renderer. Software rasterizers (SwiftShader, llvmpipe:
+ * what Chrome uses when the GPU is blocklisted or absent) cannot hold a smooth
+ * frame rate for this scene, so those visitors keep the poster. `?webgl=force`
+ * overrides the check for testing.
+ */
+function hardwareWebGL() {
   try {
     const probe = document.createElement("canvas");
-    return Boolean(probe.getContext("webgl2") ?? probe.getContext("webgl"));
+    const gl = (probe.getContext("webgl2") ?? probe.getContext("webgl")) as WebGLRenderingContext | null;
+    if (!gl) return false;
+    const info = gl.getExtension("WEBGL_debug_renderer_info");
+    const renderer = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return isForced() || !/swiftshader|llvmpipe|softpipe|software|basic render/i.test(renderer);
   } catch {
     return false;
   }
@@ -77,7 +90,7 @@ export function SceneStage() {
     if (!canvas) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const nav = navigator as Navigator & { connection?: { saveData?: boolean } };
-    if (reduced.matches || nav.connection?.saveData || !webglAvailable()) return;
+    if (reduced.matches || nav.connection?.saveData || !hardwareWebGL()) return;
 
     let scene: ParticleScene | null = null;
     let disposed = false;
@@ -134,8 +147,10 @@ export function SceneStage() {
         canvas.dataset.particles = String(count);
         scene = mod.createParticleScene(canvas, {
           count,
-          onDegrade: () => {
-            canvas.dataset.degraded = "";
+          onDegrade: (level) => {
+            canvas.dataset.quality = level;
+            // Still too slow at reduced quality: fall back to the poster.
+            if (level === "off" && !isForced()) teardown();
           },
           maxPixelRatio: 1.5,
           onFirstFrame: () => {

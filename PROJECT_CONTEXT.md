@@ -64,7 +64,7 @@ Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, componen
 ### Funcionalidades
 
 **Páginas**
-- Landing page em inglês: problema, como funciona, por que Gemini, preços e metas.
+- Landing page em inglês, com cena 3D guiada pela rolagem: ameaça, problema, como funciona, veredito, envio, por que Gemini, metas, preços e chamada para o dashboard (detalhes abaixo).
 - Dashboard em `/dashboard`: fila de disputas e faixa de KPIs (taxa de vitória, tempo mediano até o envio, valor recuperado, taxa de disputa frente ao limite de 0,9%).
 - Visão de cada caso em `/dashboard/disputes/[id]`: veredito, auditoria CE 3.0, linha do tempo, cláusulas dos Termos destacadas e carta de apresentação no idioma do emissor.
 
@@ -115,6 +115,17 @@ Mudanças feitas por causa dessas execuções: o prompt passou a exigir ID da di
 - **Não verificado:** a rota versionada com `api-version`, `n` maior que 1, `output_format` diferente de png, `background`, outros valores de `size` e `quality`, outros deployments, e os mapeamentos de erro contra corpos de erro reais do Foundry.
 - **Limites:** só gera imagens (sem edição), só autenticação por chave (sem Microsoft Entra) e é stdio: roda onde o cliente o inicia, não é um serviço de rede. Em sessões na nuvem, o ambiente precisa ter as variáveis e liberar o host do Foundry na política de rede. As dependências do servidor são instaladas por um launcher `sh` no `.mcp.json` na primeira partida (3 s, medido num clone limpo), então não é preciso Setup script. Isso foi necessário depois que uma sessão nova falhou ao conectar o servidor por falta de `node_modules`.
 
+### Landing page (2026-11-01)
+
+Refeita em torno de um conceito único, "cadeia de custódia" (`docs/landing-concept.md`): fragmentos soltos de evidência viram fios, os fios se fecham num selo (o veredito) e o selo sai por uma linha (o envio).
+
+- **Como funciona:** a página continua estática (Server Component pré-renderizado). A cena 3D (`src/components/landing/particle-scene.ts`) usa `three` puro, com uma única chamada de desenho de partículas; o shader mistura quatro formas a partir de um único valor de progresso ligado à rolagem. O módulo é carregado por `import()` dinâmico quando o navegador fica ocioso, então o three.js não entra no JavaScript inicial. Rolagem suave com `lenis` só em mouse/trackpad. Fonte de destaque Instrument Serif via `next/font`. Todos os tokens ficam em `.landing` (`landing.css`); o dashboard ficou idêntico pixel a pixel, conferido no tema claro e escuro.
+- **Alternativas:** uma imagem gerada (pôster) fica sempre por baixo do canvas. A cena não carrega com `prefers-reduced-motion`, Save-Data, sem WebGL ou com WebGL por software (SwiftShader/llvmpipe; `?webgl=force` força a cena para teste). Com movimento reduzido também não há rolagem suave nem animações. Todo o conteúdo está no HTML do servidor, então a página funciona sem JavaScript. A qualidade cai sozinha (metade das partículas) e, se ainda ficar lenta, a cena desliga e fica o pôster.
+- **Imagens:** 7 geradas pela ferramenta MCP `foundry-image` (1 teste, 3 explorações em qualidade baixa, 3 finais em qualidade alta); 3 usadas na página e uma recortada para Open Graph. Prompts em `public/images/landing/README.md`. Todas são decorativas e sem texto.
+- **Medido** (build de produção, local, Chromium): JS inicial de `/` com 146,5 KB transferidos (a landing anterior tinha 139,6 KB); depois do ócio, +10 KB (Lenis) e, só quando a cena roda, +133 KB (three.js). CLS 0. Sem a cena, 60 fps rolando a página e nenhuma tarefa longa. A cena só pôde ser medida com SwiftShader (o ambiente não tem GPU): cerca de 20 fps em 1440×900 e 58 fps em 390×844; por isso o WebGL por software passou a ficar com o pôster.
+- **Não verificado:** desempenho em GPU real e em aparelhos reais, Safari e Firefox (onde o navegador não suporta animações CSS ligadas à rolagem, o conteúdo aparece sem animação), e uma execução real do Lighthouse.
+- **Honestidade do conteúdo:** sem logos, depoimentos ou métricas ao vivo; metas aparecem marcadas como metas, números do setor como estimativas, o envio como simulado e os casos como fictícios.
+
 ### Dados de demonstração
 
 Seis disputas abertas de um comerciante SaaS fictício, a Lumen Analytics, na data de 28/10/2026. Todas as pessoas, bancos e empresas são fictícios.
@@ -140,7 +151,8 @@ src/lib/analysis/      Sinais, prompt, chamada ao Gemini, fundamentação, dossi
 src/lib/demo/          Casos de demonstração, Termos de Serviço, histórico de KPIs
 src/app/api/           Rotas: analyze e webhook da Stripe
 src/app/dashboard/     Fila + KPIs e visão do caso
-src/components/        Landing, dashboard e componentes ui
+src/components/        Landing (cena 3D, seções, movimento), dashboard e componentes ui
+docs/                  Conceito da landing page
 tests/                 Testes de CE 3.0, webhook, análise e métricas
 ```
 
@@ -165,7 +177,7 @@ Sem configuração, o app roda com dados de demonstração e dossiê por regras.
 
 ### Verificação mais recente
 
-Conferido em 2026-10-31 no checkout local da branch: 109 de 109 testes passam; lint, `npm run typecheck` e `next build` passam. A análise com o Gemini foi exercitada à mão e pela avaliação, ver a seção 8 e a avaliação acima.
+Conferido em 2026-11-01 no checkout local da branch, depois da nova landing: 109 de 109 testes passam; lint, `npm run typecheck` e `next build` passam (`/` continua estática). A análise com o Gemini foi exercitada à mão e pela avaliação, ver a seção 8 e a avaliação acima.
 
 ---
 
@@ -193,6 +205,7 @@ Conferido em 2026-10-31 no checkout local da branch: 109 de 109 testes passam; l
 4. **Troca do provedor de LLM para o Gemini** (2026-10-31): a API da Anthropic não pôde ser vinculada ao projeto. A camada de análise ficou independente de provedor (`DossierOutputSchema`, `source: "ai"`), o cliente passou a `src/lib/analysis/gemini.ts`, o SDK da Anthropic foi removido, os textos da interface e da landing passaram a dizer Gemini e os testes foram ampliados para 57. A chamada real foi testada nos seis casos; o prompt foi ajustado para as cartas não citarem IDs internos de evidência.
 5. **Avaliação repetível** (2026-10-31): `npm run eval`, com avaliadores determinísticos, limites por caso e comparação com linha de base. Detalhes e primeiras execuções na seção 7.
 6. **Servidor MCP de geração de imagens com o Microsoft Foundry** (2026-11-01): `tools/foundry-image-mcp/`, ver a seção 7.
+7. **Nova landing page** (2026-11-01): cena 3D guiada pela rolagem e imagens geradas pelo Foundry, ver a seção 7.
 
 O histórico das versões está no git.
 
@@ -205,3 +218,4 @@ O histórico das versões está no git.
 5. Autenticação e escopo por comerciante nas rotas.
 6. Revisão das regras de CE 3.0 e dos códigos de motivo contra os textos oficiais da Visa e da Mastercard, e revisão das cartas por falantes nativos.
 7. Revisão de código e teste visual da interface reconstruída.
+8. Testar a landing em GPUs e aparelhos reais, no Safari e no Firefox, e rodar o Lighthouse.

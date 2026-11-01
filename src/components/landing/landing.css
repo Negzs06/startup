@@ -433,7 +433,7 @@ html.lenis.lenis-stopped {
 @media (min-width: 768px) {
   .lp-fact {
     grid-template-columns: 14rem 1fr;
-    align-items: baseline;
+    align-items: start;
   }
 }
 .lp-fact dt {
@@ -442,6 +442,9 @@ html.lenis.lenis-stopped {
   line-height: 1;
   letter-spacing: -0.02em;
   color: var(--lp-paper);
+}
+.lp-fact dd {
+  padding-top: 0.35rem;
 }
 .lp-fact dd h3 {
   font-size: 1.05rem;

@@ -4,6 +4,7 @@ import { Ce3Explainer } from "./ce3-explainer";
 import type { Ce3DemoCase, SceneRecords } from "./data";
 import { SceneStage } from "./scene-stage";
 import { StampLink } from "./stamp-link";
+import caseAssembling from "../../../public/images/landing/case-assembling.webp";
 import caseFiled from "../../../public/images/landing/case-filed.webp";
 import embosser from "../../../public/images/landing/embosser.webp";
 import evidenceSpill from "../../../public/images/landing/evidence-spill.webp";
@@ -33,7 +34,7 @@ export function Hero({ records }: { records: SceneRecords }) {
   return (
     <section id="top" className="hero" aria-labelledby="hero-title" data-hero>
       <div className="stage" data-stage>
-        <Image src={evidenceSpill} alt="" fill preload sizes="100vw" placeholder="blur" className="stage-photo" />
+        <Image src={evidenceSpill} alt="" fill preload sizes="100vw" className="stage-photo" />
         <GiantWord word="DISPUTED" zoomIndex={1} className="giant giant-back" />
         <SceneStage records={records} />
         <GiantWord word="DISPUTED" zoomIndex={1} className="giant giant-front" />
@@ -237,6 +238,11 @@ export function Pipeline() {
   return (
     <section id="how-it-works" className="pipeline" aria-labelledby="pipeline-title" data-pipeline>
       <div className="pipeline-sticky">
+        <div className="pipeline-photo" aria-hidden="true">
+          <div className="pipeline-photo-frame">
+            <Image src={caseAssembling} alt="" fill sizes="(min-width: 1024px) 56vw, 100vw" />
+          </div>
+        </div>
         <div className="wrap pipeline-grid">
           <div className="pipeline-head">
             <h2 id="pipeline-title" className="h2 split">
@@ -364,7 +370,7 @@ export function Filed() {
   return (
     <section id="filed" className="filed" aria-labelledby="filed-title" data-filed>
       <div className="filed-photo" aria-hidden="true">
-        <Image src={caseFiled} alt="" fill sizes="100vw" />
+        <Image src={caseFiled} alt="" fill sizes="(min-width: 1024px) 66vw, 100vw" />
       </div>
       <div className="wrap filed-grid">
         <h2 id="filed-title" className="giant-sm split">

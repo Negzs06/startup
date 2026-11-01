@@ -170,12 +170,15 @@ export type PaperSet = {
   sealMask: Texture;
 };
 
-export function drawPaper(
+/** Give the main thread back between expensive steps so boot never becomes one long task. */
+export const yieldTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+export async function drawPaper(
   records: SceneRecords,
   fonts: Fonts,
   images: { cotton: HTMLImageElement; manila: HTMLImageElement },
   opts: { sheetWidth: number; anisotropy: number },
-): PaperSet {
+): Promise<PaperSet> {
   const W = opts.sheetWidth;
   const u = W / 100; // one "unit" = 1% of sheet width
 
@@ -311,6 +314,7 @@ export function drawPaper(
   const cottonTile = toTexture(cc, opts.anisotropy);
   cottonTile.wrapS = cottonTile.wrapT = MirroredRepeatWrapping;
 
+  await yieldTask();
   // --- Seal mask: R = sharp stamp, G = blurred (where ink bleeds) -------------
   const S = 512;
   const [sc, sctx] = canvas(S, S, true);
@@ -355,16 +359,17 @@ export function drawPaper(
   sctx.putImageData(blurred, 0, 0);
   const sealMask = new CanvasTexture(sc);
 
-  return {
-    notice: toTexture(n.c, opts.anisotropy),
-    logins: logSheet("Auth0 · login log", records.logins, "#efe6c4"),
-    usage: logSheet("PostHog · product usage", records.usage, "#ecd8cf"),
-    ticket: logSheet(`Zendesk · ${records.ticket.title}`, records.ticket.lines, "#dfe3d6"),
-    receipt: receipt(records.receipt),
-    priorReceipt: receipt(records.priorReceipt),
-    tags: records.tags.map((t) => tag(t.id, t.lines)),
-    manila,
-    cottonTile,
-    sealMask,
-  };
+  const notice = toTexture(n.c, opts.anisotropy);
+  await yieldTask();
+  const logins = logSheet("Auth0 · login log", records.logins, "#efe6c4");
+  await yieldTask();
+  const usage = logSheet("PostHog · product usage", records.usage, "#ecd8cf");
+  await yieldTask();
+  const ticket = logSheet(`Zendesk · ${records.ticket.title}`, records.ticket.lines, "#dfe3d6");
+  await yieldTask();
+  const receiptTex = receipt(records.receipt);
+  const priorReceipt = receipt(records.priorReceipt);
+  await yieldTask();
+  const tags = records.tags.map((t) => tag(t.id, t.lines));
+  return { notice, logins, usage, ticket, receipt: receiptTex, priorReceipt, tags, manila, cottonTile, sealMask };
 }

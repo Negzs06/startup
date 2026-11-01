@@ -1,20 +1,22 @@
 /*
  * Landing page v2, "the evidence room". Everything is scoped to `.landing`,
- * `html:has(.landing)` or landing-only class names, so the dashboard keeps
+ * `html[data-landing]` or landing-only class names, so the dashboard keeps
  * globals.css untouched. Concept: docs/landing-concept.md.
  *
  * Modes, set on <html> by the client islands:
  *   data-motion="on"  GSAP/ScrollTrigger loaded and motion allowed (pins, scrubs)
  *   data-scene="live" the WebGL scene is drawing (stage becomes fixed)
+ *   data-landing      the landing is on screen (set by an effect, cleared when
+ *                     Next hides the route after navigation)
  * Without either, the page is a static, fully readable composition.
  */
 
-html:has(.landing) {
+html[data-landing] {
   background: #e9e4d8;
   color-scheme: light;
 }
 @media (prefers-reduced-motion: no-preference) {
-  html:has(.landing):not(.lenis) {
+  html[data-landing]:not(.lenis) {
     scroll-behavior: smooth;
   }
 }
@@ -698,6 +700,48 @@ html:not([data-scene="live"]) .giant-front {
   margin-top: 0.6rem;
 }
 
+/* Static still for the pipeline when the live scene is not running. */
+.pipeline-sticky {
+  position: relative;
+}
+.pipeline-photo {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 56%;
+  pointer-events: none;
+}
+.pipeline-photo-frame {
+  position: sticky;
+  top: var(--head);
+  height: calc(100svh - var(--head));
+}
+.pipeline-photo img {
+  object-fit: cover;
+  object-position: 70% 50%;
+}
+html[data-scene="live"] .pipeline-photo {
+  display: none;
+}
+@media (max-width: 1023px) {
+  .pipeline-photo {
+    position: relative;
+    width: 100%;
+    margin-top: -2rem;
+    margin-bottom: 2rem;
+  }
+  .pipeline-photo-frame {
+    position: relative;
+    top: 0;
+    height: auto;
+    aspect-ratio: 3 / 2;
+  }
+  html[data-motion="on"] .pipeline-photo {
+    position: absolute;
+    inset: var(--head) 0 auto 0;
+    margin: 0;
+  }
+}
+
 /* Pinned mode: the section is a long track and its inner panel sticks. */
 html[data-motion="on"] .pipeline {
   height: 560svh;
@@ -1174,9 +1218,20 @@ html[data-scene="live"] .pipeline {
   overflow: hidden;
   background: var(--paper);
 }
+.filed-photo {
+  position: absolute;
+  inset: 0 0 auto 34%;
+  height: 72%;
+}
 .filed-photo img {
   object-fit: cover;
-  object-position: 85% 50%;
+  object-position: 85% 40%;
+}
+@media (max-width: 1023px) {
+  .filed-photo {
+    inset: 0 0 auto 0;
+    height: 48%;
+  }
 }
 html[data-scene="live"] .filed {
   background: transparent;
@@ -1217,8 +1272,6 @@ html[data-scene="live"] .filed-photo {
 }
 .memo-head .rec {
   margin-bottom: 1.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--ink);
 }
 .memo-list {
   border-top: 2px solid var(--ink);

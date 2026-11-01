@@ -47,7 +47,7 @@ import {
 } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { SceneRecords } from "../data";
-import { drawPaper, loadImage, type Fonts } from "./paper-textures";
+import { drawPaper, loadImage, yieldTask, type Fonts } from "./paper-textures";
 
 export type Tier = "high" | "low";
 
@@ -250,7 +250,7 @@ export async function createEvidenceScene(
 
   const [cotton, manilaImg] = await Promise.all([loadImage(options.images.cotton), loadImage(options.images.manila)]);
   const anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-  const paper = drawPaper(
+  const paper = await drawPaper(
     options.records,
     options.fonts,
     { cotton, manila: manilaImg },
@@ -259,6 +259,7 @@ export async function createEvidenceScene(
 
   const scene = new Scene();
   const pmrem = new PMREMGenerator(renderer);
+  await yieldTask();
   const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environment = env;
   scene.environmentIntensity = 0.55;
@@ -689,6 +690,16 @@ export async function createEvidenceScene(
       last = 0;
       raf = requestAnimationFrame(frame);
     }
+  }
+
+  // Compile shader programs before the first frame without blocking the main thread
+  // where the browser supports parallel compilation (KHR_parallel_shader_compile).
+  apply(0);
+  await yieldTask();
+  try {
+    if (renderer.extensions.has("KHR_parallel_shader_compile")) await renderer.compileAsync(scene, camera);
+  } catch {
+    // compiled lazily on the first render instead
   }
 
   return {

@@ -11,6 +11,17 @@ import { notifyScene, sceneCover, sceneSegments } from "./scene/bus";
  * here fails, the page stays a complete static composition.
  */
 export function LandingMotion() {
+  // Marks <html> while the landing is on screen, for page-level styles (background,
+  // color-scheme). An effect, not :has(), because Next keeps a visited route mounted
+  // but hidden after navigation; effects are cleaned up when it is hidden.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.landing = "";
+    return () => {
+      delete root.dataset.landing;
+    };
+  }, []);
+
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const root = document.documentElement;
@@ -52,10 +63,12 @@ export function LandingMotion() {
         gsap.ticker.lagSmoothing(0);
       }
 
-      // In-page links: smooth with Lenis, but keep the hash and move focus like a native anchor.
+      // In-page links: smooth scrolling that keeps native semantics (hash + focus). The
+      // destination is measured from the pin-spacer when the target is a pinned room,
+      // because a pinned element's own box is not where it lives in the document.
+      const header = () => document.querySelector<HTMLElement>(".masthead")?.offsetHeight ?? 64;
       const onClick = (event: MouseEvent) => {
         if (
-          !lenis ||
           event.defaultPrevented ||
           event.button !== 0 ||
           event.metaKey ||
@@ -71,13 +84,18 @@ export function LandingMotion() {
         if (!target) return;
         event.preventDefault();
         history.pushState(null, "", `#${id}`);
-        lenis.scrollTo(target, {
-          onComplete: () => {
-            if (!target.hasAttribute("tabindex") && !target.matches("a, button, input, select, textarea"))
-              target.setAttribute("tabindex", "-1");
-            target.focus({ preventScroll: true });
-          },
-        });
+        const box = target.parentElement?.classList.contains("pin-spacer") ? target.parentElement : target;
+        const y = Math.max(0, box.getBoundingClientRect().top + window.scrollY - header());
+        const done = () => {
+          if (!target.hasAttribute("tabindex") && !target.matches("a, button, input, select, textarea"))
+            target.setAttribute("tabindex", "-1");
+          target.focus({ preventScroll: true });
+        };
+        if (lenis) lenis.scrollTo(y, { onComplete: done });
+        else {
+          window.scrollTo({ top: y, behavior: "smooth" });
+          window.setTimeout(done, 600);
+        }
       };
       document.addEventListener("click", onClick);
 
@@ -113,9 +131,14 @@ export function LandingMotion() {
           });
           tl.to(words, { scale: 70, ease: "power3.in", duration: 1 }, 0)
             .to(back, { color: "#e5391c", ease: "none", duration: 0.35 }, 0.45)
-            .to(front ?? [], { opacity: 0, ease: "none", duration: 0.25 }, 0.15)
-            .to(photo ?? [], { opacity: 0, ease: "none", duration: 0.4 }, 0.3)
             .set(words, { autoAlpha: 0 }, 1);
+          if (front) tl.to(front, { opacity: 0, ease: "none", duration: 0.25 }, 0.15);
+          if (photo) tl.to(photo, { opacity: 0, ease: "none", duration: 0.4 }, 0.3);
+          // On phones the copy is a sheet the visitor is still reading as it scrolls up: leave it.
+          const sheet = hero.querySelector(".hero-sheet");
+          if (sheet && window.innerWidth >= 768) {
+            tl.to(sheet, { autoAlpha: 0, y: -60, ease: "power1.in", duration: 0.22 }, 0);
+          }
         }
 
         // --- Section headings: split-line mask reveals ------------------------
@@ -263,15 +286,17 @@ export function LandingMotion() {
               duration: 1.2,
               scrollTrigger: { trigger: band, start: "top 80%", once: true },
             });
-          gsap.from(ce3.querySelectorAll("[data-ce3-tag]"), {
+          // opacity, not visibility: the tags stay in the tab order before they animate in
+          const tagsIn = gsap.from(ce3.querySelectorAll("[data-ce3-tag]"), {
             y: -40,
             rotate: -12,
-            autoAlpha: 0,
+            opacity: 0,
             duration: 0.9,
             ease: "back.out(1.6)",
             stagger: 0.07,
             scrollTrigger: { trigger: ce3.querySelector(".ce3-board"), start: "top 80%", once: true },
           });
+          ce3.addEventListener("focusin", () => tagsIn.progress(1), { once: true });
           // The verdict sheet slides over the ink room.
           ScrollTrigger.create({ trigger: ce3, start: "bottom bottom", end: "+=100%", pin: true, pinSpacing: false });
         }

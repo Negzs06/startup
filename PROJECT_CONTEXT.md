@@ -64,7 +64,7 @@ Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, componen
 ### Funcionalidades
 
 **Páginas**
-- Landing page em inglês, com cena 3D guiada pela rolagem: ameaça, problema, como funciona, veredito, envio, por que Gemini, metas, preços e chamada para o dashboard (detalhes abaixo).
+- Landing page em inglês, "a sala de evidências": cena 3D de objetos físicos guiada pela rolagem, explicador interativo de CE 3.0, veredito, envio, por que Gemini, metas, preços e chamada para o dashboard (detalhes abaixo).
 - Dashboard em `/dashboard`: fila de disputas e faixa de KPIs (taxa de vitória, tempo mediano até o envio, valor recuperado, taxa de disputa frente ao limite de 0,9%).
 - Visão de cada caso em `/dashboard/disputes/[id]`: veredito, auditoria CE 3.0, linha do tempo, cláusulas dos Termos destacadas e carta de apresentação no idioma do emissor.
 
@@ -115,16 +115,17 @@ Mudanças feitas por causa dessas execuções: o prompt passou a exigir ID da di
 - **Não verificado:** a rota versionada com `api-version`, `n` maior que 1, `output_format` diferente de png, `background`, outros valores de `size` e `quality`, outros deployments, e os mapeamentos de erro contra corpos de erro reais do Foundry.
 - **Limites:** só gera imagens (sem edição), só autenticação por chave (sem Microsoft Entra) e é stdio: roda onde o cliente o inicia, não é um serviço de rede. Em sessões na nuvem, o ambiente precisa ter as variáveis e liberar o host do Foundry na política de rede. As dependências do servidor são instaladas por um launcher `sh` no `.mcp.json` na primeira partida (3 s, medido num clone limpo), então não é preciso Setup script. Isso foi necessário depois que uma sessão nova falhou ao conectar o servidor por falta de `node_modules`.
 
-### Landing page (2026-11-01)
+### Landing page (v2, 2026-11-01)
 
-Refeita em torno de um conceito único, "cadeia de custódia" (`docs/landing-concept.md`): fragmentos soltos de evidência viram fios, os fios se fecham num selo (o veredito) e o selo sai por uma linha (o envio).
+A primeira versão (partículas azul-marinho e verde-azulado) foi rejeitada por parecer uma landing genérica de IA. A v2, "a sala de evidências" (`docs/landing-concept.md`), é clara e física: papel, tinta preta e um vermelhão de carimbo para a ameaça; um verde de livro-razão só onde algo foi verificado.
 
-- **Como funciona:** a página continua estática (Server Component pré-renderizado). A cena 3D (`src/components/landing/particle-scene.ts`) usa `three` puro, com uma única chamada de desenho de partículas; o shader mistura quatro formas a partir de um único valor de progresso ligado à rolagem. O módulo é carregado por `import()` dinâmico quando o navegador fica ocioso, então o three.js não entra no JavaScript inicial. Rolagem suave com `lenis` só em mouse/trackpad. Fonte de destaque Instrument Serif via `next/font`. Todos os tokens ficam em `.landing` (`landing.css`); o dashboard ficou idêntico pixel a pixel, conferido no tema claro e escuro.
-- **Alternativas:** uma imagem gerada (pôster) fica sempre por baixo do canvas. A cena não carrega com `prefers-reduced-motion`, Save-Data, sem WebGL ou com WebGL por software (SwiftShader/llvmpipe; `?webgl=force` força a cena para teste). Com movimento reduzido também não há rolagem suave nem animações. Todo o conteúdo está no HTML do servidor, então a página funciona sem JavaScript. A qualidade cai sozinha (metade das partículas) e, se ainda ficar lenta, a cena desliga e fica o pôster.
-- **Imagens:** 7 geradas pela ferramenta MCP `foundry-image` (1 teste, 3 explorações em qualidade baixa, 3 finais em qualidade alta); 3 usadas na página e uma recortada para Open Graph. Prompts em `public/images/landing/README.md`. Todas são decorativas e sem texto.
-- **Medido** (build de produção, local, Chromium): JS inicial de `/` com 146,5 KB transferidos (a landing anterior tinha 139,6 KB); depois do ócio, +10 KB (Lenis) e, só quando a cena roda, +133 KB (three.js). CLS 0. Sem a cena, 60 fps rolando a página e nenhuma tarefa longa. A cena só pôde ser medida com SwiftShader (o ambiente não tem GPU): cerca de 20 fps em 1440×900 e 58 fps em 390×844; por isso o WebGL por software passou a ficar com o pôster.
-- **Não verificado:** desempenho em GPU real e em aparelhos reais, Safari e Firefox (onde o navegador não suporta animações CSS ligadas à rolagem, o conteúdo aparece sem animação), e uma execução real do Lighthouse.
-- **Honestidade do conteúdo:** sem logos, depoimentos ou métricas ao vivo; metas aparecem marcadas como metas, números do setor como estimativas, o envio como simulado e os casos como fictícios.
+- **Como funciona:** a página continua estática (Server Component pré-renderizado). A cena 3D (`src/components/landing/scene/`) usa `three` puro, carregado por `import()` dinâmico no ócio: folhas, recibos e etiquetas com os registros do caso CG-1041 desenhados em código, envelope de papel glassine, pasta manila com capa articulada e um sinete de latão; materiais físicos com as texturas geradas, luz principal e de recorte, `RoomEnvironment` (sem HDRI baixado) e sombras. A câmera percorre sete estados ligados à rolagem (disputa, webhook, registros, CE 3.0, dossiê, veredito, arquivado); a marca do sinete aparece com um shader de tinta que penetra nas fibras. A rolagem usa GSAP (ScrollTrigger e SplitText, licença "Standard 'no charge'") ligado ao Lenis: a palavra gigante do topo dá zoom na haste do "I" até virar a sala vermelha, o pipeline fica fixo com a câmera, um formulário de progresso e um contador; a sala do CE 3.0 abre como porta e fica presa enquanto o veredito desliza por cima. O explicador de CE 3.0 roda `src/lib/ce3/audit.ts` no navegador com os casos CG-1041 e CG-1045. O botão principal recebe um carimbo e uma cortina vermelha antes de ir para `/dashboard`. Fontes: Archivo (largura variável) e Courier Prime. Os estilos ficam em `.landing` e `html[data-landing]`; o dashboard ficou idêntico pixel a pixel (claro e escuro, também após navegar a partir da landing).
+- **Alternativas:** nada começa escondido no HTML do servidor. Com `prefers-reduced-motion`, nem GSAP, nem Lenis, nem a cena carregam, e a página vira uma composição estática com as fotos geradas (o explicador continua funcionando). Sem WebGL, com WebGL por software (SwiftShader/llvmpipe; `?webgl=force` força a cena para teste) ou se o chunk falhar, as mesmas fotos substituem a cena. Links internos mantêm o hash e o foco; rolagem por teclado e busca da página funcionam.
+- **Imagens:** 11 geradas nesta rodada pela ferramenta MCP `foundry-image` (4 em qualidade baixa, 2 média, 5 alta), escritas como briefings de estúdio; 8 arquivos publicados (fotos, recortes com fundo transparente, texturas e a imagem de Open Graph). As imagens da v1 foram apagadas. Prompts e contagem em `public/images/landing/README.md`.
+- **Medido** (build de produção, Chromium local, 1440×900): JS inicial de `/` com 151,5 KB transferidos (v1: 146,5 KB; página original: 139,6 KB); 210 KB depois do ócio com GSAP e Lenis; 356 KB quando a cena 3D carrega. CLS 0,004. Sem a cena, 60 fps rolando a página toda e nenhuma tarefa longa. A cena só rodou com SwiftShader (sem GPU no ambiente), onde desenha corretamente a 3–12 fps; prova numérica de que a cena muda com a rolagem: 8 capturas do canvas, todas com hash diferente e 15% a 45% dos pixels alterados entre posições vizinhas.
+- **Corrigido na verificação:** um placeholder de imagem com desfoque em tela cheia causava uma tarefa longa de ~600 ms; âncoras para a sala presa caíam no lugar errado; etiquetas do CE 3.0 ficavam fora da ordem de tabulação antes de animar; a cortina do botão e o fundo da landing continuavam no dashboard porque o Next mantém a rota anterior montada (oculta) depois da navegação.
+- **Não verificado:** GPU real e aparelhos reais, Safari, Firefox e uma execução real do Lighthouse.
+- **Honestidade do conteúdo:** sem logos, depoimentos ou métricas ao vivo; metas marcadas como metas, números do setor como estimativas, envio como simulado, casos como fictícios.
 
 ### Dados de demonstração
 
@@ -151,8 +152,8 @@ src/lib/analysis/      Sinais, prompt, chamada ao Gemini, fundamentação, dossi
 src/lib/demo/          Casos de demonstração, Termos de Serviço, histórico de KPIs
 src/app/api/           Rotas: analyze e webhook da Stripe
 src/app/dashboard/     Fila + KPIs e visão do caso
-src/components/        Landing (cena 3D, seções, movimento), dashboard e componentes ui
-docs/                  Conceito da landing page
+src/components/        Landing (salas, cena 3D, coreografia de rolagem, explicador de CE 3.0), dashboard e componentes ui
+docs/                  Conceito e capturas de tela da landing page
 tests/                 Testes de CE 3.0, webhook, análise e métricas
 ```
 
@@ -206,6 +207,7 @@ Conferido em 2026-11-01 no checkout local da branch, depois da nova landing: 109
 5. **Avaliação repetível** (2026-10-31): `npm run eval`, com avaliadores determinísticos, limites por caso e comparação com linha de base. Detalhes e primeiras execuções na seção 7.
 6. **Servidor MCP de geração de imagens com o Microsoft Foundry** (2026-11-01): `tools/foundry-image-mcp/`, ver a seção 7.
 7. **Nova landing page** (2026-11-01): cena 3D guiada pela rolagem e imagens geradas pelo Foundry, ver a seção 7.
+8. **Landing v2, "a sala de evidências"** (2026-11-01): direção física e clara no lugar das partículas, cena 3D com objetos reais, GSAP e explicador de CE 3.0, ver a seção 7.
 
 O histórico das versões está no git.
 

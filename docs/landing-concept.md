@@ -63,10 +63,10 @@ sits in front of them.
 | 0–1 | Hero, paper | Page load: header rule draws, the giant word rises line by line, the canvas fades in. Pointer tilt. |
 | 1–2 | Hero → problem | The giant word scales into the stem of its "I" until the stem fills the screen and turns vermilion: the word becomes the next room's wall. The scene fades. |
 | 2–4 | Problem, vermilion | Oversized numerals count up as they enter; ruled ledger rows; a receipt crosses the boundary into the next room. A marquee of reason codes and programmes speeds up and slows with scroll velocity. |
-| 4–9 | Pipeline, paper, sticky | One continuous camera move, states 1→4. A five-line form on the left fills line by line; a flip counter shows the step; the step copy is revealed by line masks in step with the camera. |
-| 9–11 | CE 3.0, ink room | Opens as a door (clip-path from a centre slit). Prior transactions hang as tags on a day scale; the 120–365-day window draws in. Interactive: switch case, select a tag, read why it does or does not qualify, all computed client-side by `src/lib/ce3/audit.ts`. |
-| 11–13 | Verdict, paper | The paper room slides over the ink room like a sheet. Scene states 4→5: the seal presses, ink bleeds. Ledger: CG-1041 contest, CG-1044 accept. |
-| 13–14 | Filed | Scene 5→6: the file leaves the frame. Copy states that submission is simulated. |
+| 4–9.6 | Pipeline, paper, sticky | One continuous camera move through states 0→5: webhook, records, CE 3.0, dossier, verdict (the seal presses, ink bleeds). A five-line form on the left fills line by line; a flip counter shows the step; the step copy is revealed by line masks in step with the camera. |
+| 9.6–11.5 | CE 3.0, ink room | Opens as a door (clip-path from a centre slit). Prior transactions hang as tags on a day scale; the 120–365-day window draws in. Interactive: switch case, select a tag, read why it does or does not qualify, all computed client-side by `src/lib/ce3/audit.ts`. Pinned at its end so the next room slides over it. |
+| 11.5–13 | Verdict, paper sheet | Slides over the ink room. The embosser photograph sits between a 20vw "ACCEPT" and its outline. Ledger: CG-1041 contest, CG-1044 accept. |
+| 13–14 | Filed | Scene 5→6: the sealed file leaves the frame. Copy states that submission is simulated. |
 | 14+ | Memo, targets, ledger, CTA | Why Gemini as a typed memo; targets as flip counters marked TARGET; pricing as a ledger; CTA in vermilion where the stamp lands on the button before routing to /dashboard. |
 
 ## Fallbacks

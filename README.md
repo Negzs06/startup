@@ -32,45 +32,64 @@ Copy `.env.example` to `.env.local` to enable the rest:
 
 ## Landing page
 
-The landing (`src/app/page.tsx`, `src/components/landing/`) tells one story, "chain
-of custody": loose evidence fragments are gathered into strands, the strands close
-into a seal (the verdict) and the seal leaves along a line (filing). The concept,
-palette, type and motion rules are in `docs/landing-concept.md`.
+The landing (`src/app/page.tsx`, `src/components/landing/`) is "the evidence room":
+a light, physical page (paper, ink, a vermilion stamp colour) where a spilled case
+file is gathered, audited, sealed and filed as you scroll. Concept, palette, type,
+the 3D story and the scroll storyboard: `docs/landing-concept.md`. Screenshots:
+`docs/landing-screenshots/`.
 
-- **Stack:** the page is a statically prerendered Server Component. Two small client
-  islands add behaviour: `scene-stage.tsx` (the 3D scene) and `landing-motion.tsx`
-  (pipeline step highlighting, magnetic buttons, smooth scroll). Added dependencies:
-  `three` (the scene, no React wrapper) and `lenis` (smooth scrolling). Display face:
-  Instrument Serif via `next/font`. All landing tokens live under `.landing` in
-  `landing.css`, so the dashboard is unchanged (verified pixel-identical, light and dark).
-- **3D:** `particle-scene.ts` is one `THREE.Points` draw call. Each particle carries
-  four target positions as attributes and the vertex shader blends them from a single
-  progress uniform; hairline rings and a glow quad sharpen the seal. Sections opt in
-  with `data-scene="progress offsetX opacity"`, and the stage maps the scroll position
-  between them. The module is loaded with a dynamic `import()` on idle, so three.js
-  is never in the initial bundle. Pixel ratio is capped at 1.5, the particle count is
-  18k on desktop-class devices and 7k on small, ≤4-core or ≤4 GB devices, quality
-  drops once (half the particles, DPR 1) and then the scene switches off if rolling
-  90-frame windows stay under 45 and then 30 fps, rendering stops while the tab is
-  hidden or the scene is fully faded (opaque sections cover it).
-- **Fallbacks:** a generated poster image is always server-rendered under the canvas.
-  The scene is not loaded at all with `prefers-reduced-motion: reduce`, Save-Data,
-  no WebGL, or a software WebGL renderer (SwiftShader/llvmpipe; add `?webgl=force`
-  to the URL to test the scene there anyway); then the poster is what you see. Under
-  reduced motion there is also no smooth scroll, no load choreography and no scroll
-  reveals. Reveals use CSS scroll-driven animations only where supported; everything
-  is visible in the server HTML, so the page reads the same with JavaScript off.
-  Smooth scroll uses native scrolling underneath: keyboard scrolling and find-in-page
-  work, and in-page links still update the hash and move focus to their target.
-- **Images:** AI-generated with the `foundry-image` MCP tool; prompts, count and
-  processing are in `public/images/landing/README.md`.
-- **Measured** (production build, local, Chromium): initial JS for `/` 146.5 KB
-  transferred (previous landing: 139.6 KB); after idle +10 KB (Lenis) and, only when
-  the scene runs, +133 KB (three.js). CLS 0. Without the scene, 60 fps while scrolling
-  through the story with no long tasks. The scene could only be measured on SwiftShader
-  (no GPU in the build environment): about 20 fps at 1440×900 and 58 fps at 390×844,
-  which is why software renderers now get the poster. Real-GPU frame rates, Safari,
-  Firefox and a Lighthouse run were not measured.
+- **Stack:** the page is a statically prerendered Server Component; demo records for
+  the 3D paper and the CE 3.0 explainer are sliced on the server (`data.ts`). Client
+  islands: `scene-stage.tsx` (3D), `landing-motion.tsx` (scroll choreography),
+  `ce3-explainer.tsx`, `stamp-link.tsx`. Added dependencies: `three` (no React
+  wrapper), `gsap` (ScrollTrigger and SplitText; GSAP's "Standard 'no charge'"
+  licence, see gsap.com/standard-license) and `lenis`. Type: Archivo (variable width)
+  and Courier Prime via `next/font`. Landing styles are scoped to `.landing` and
+  `html[data-landing]` in `landing.css`; the dashboard renders pixel-identical to
+  before (light and dark, list and case view, also after client-side navigation).
+- **3D** (`scene/evidence-scene.ts`, loaded by dynamic `import()` on idle): paper
+  sheets, receipts and kraft tags whose text is drawn in code from demo case CG-1041
+  (`scene/paper-textures.ts`), a glassine envelope, a manila folder with a hinged
+  cover and a brass seal. MeshStandard/MeshPhysical materials on generated cotton and
+  manila textures, a key and a rim light, three's bundled `RoomEnvironment`, shadows on
+  a shadow-catcher plane, no bloom. A Catmull-Rom camera path runs through seven
+  states (disputed, webhook, records, CE 3.0, dossier, verdict, filed) driven by
+  scroll; the seal mark is an ink-bleed shader. Pointer tilt with spring inertia on
+  fine pointers. DPR is capped at 1.5 (1.25 on the low tier); small, ≤4-core or ≤4 GB
+  devices get smaller textures and shadow maps and no glass transmission; rolling
+  90-frame windows lower quality once (DPR 1, no shadows) and then switch the scene
+  off if it still runs under 30 fps; rendering stops while the tab is hidden or an
+  opaque room covers the screen. Boot work yields between steps and shaders compile
+  with `compileAsync`.
+- **Scroll** (`landing-motion.tsx`, GSAP + ScrollTrigger + SplitText, Lenis wired to
+  ScrollTrigger via `lenis.on("scroll", ScrollTrigger.update)` and the GSAP ticker):
+  the hero word zooms into the stem of its "I" until it becomes the vermilion room;
+  a sticky pipeline scrubs the camera through states 0→5 with a form rail, a flip
+  counter and line-masked copy; the CE 3.0 room opens like a door and stays pinned
+  while the verdict sheet slides over it; numerals count up; a reason-code marquee
+  follows scroll velocity; the CTA stamps the button and wipes to /dashboard.
+- **CE 3.0 explainer:** runs `auditCe3` from `src/lib/ce3/audit.ts` in the browser on
+  demo cases CG-1041 (met) and CG-1045 (not met); tags are keyboard-focusable
+  buttons and the result is announced politely.
+- **Fallbacks:** nothing starts hidden in the server HTML. With reduced motion,
+  neither GSAP, Lenis nor the scene loads and the page is a static composition
+  built from the generated photographs (the CE 3.0 explainer still works). Without
+  WebGL, with a software renderer (SwiftShader/llvmpipe; `?webgl=force` loads the
+  scene anyway, `&scenedebug` exposes `window.__cgScene` for tests), or if the scene
+  chunk fails, the same photographs stand in for the scene. In-page links keep native
+  semantics under Lenis (hash updated, focus moved, pinned rooms measured from their
+  pin-spacer); keyboard scrolling and find-in-page work.
+- **Measured** (production build, local headless Chromium, 1440×900): JS transferred
+  for `/` at load 151.5 KB (v1 146.5 KB, the original page 139.6 KB); after idle
+  210 KB with GSAP, ScrollTrigger, SplitText and Lenis; 356 KB once the 3D chunk
+  loads. With reduced motion 156 KB in total. CLS 0.004 (0 under reduced motion).
+  Scrolling the whole page without the scene: 60 fps, no long tasks. Longest task at
+  startup: 68 ms (reduced motion), 105 ms (no WebGL); where a WebGL context is
+  created on the SwiftShader software renderer, that creation alone takes ~330 ms on
+  the idle callback. The scene itself could only be run on SwiftShader (no GPU in the
+  build environment), where it draws correctly but at 3–12 fps, which says nothing
+  about real GPUs and is why software renderers get the photographs. Not measured:
+  real-GPU frame rates, real devices, Safari, Firefox, a Lighthouse run.
 
 ## What is real and what is a stub
 
@@ -206,8 +225,8 @@ src/lib/analysis/      Signals, prompt, Gemini call, grounding, rule-based dossi
 src/lib/demo/          Demo case files, ToS, KPI history
 src/app/api/           analyze + Stripe webhook route handlers
 src/app/dashboard/     Queue + KPI page and case view
-src/components/        Landing (3D scene, sections, motion), dashboard and ui components
-docs/                  Landing page concept
+src/components/        Landing (rooms, 3D scene, scroll choreography, CE 3.0 explainer), dashboard and ui components
+docs/                  Landing page concept and screenshots
 tests/                 CE 3.0, Stripe webhook, analysis, Gemini client, grader and metrics tests
 evals/                 Live evaluation: expectations, graders, report, runner
 ```

@@ -53,7 +53,7 @@ export function SceneStage({ records }: { records: SceneRecords }) {
     const root = document.documentElement;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const nav = navigator as Navigator & { connection?: { saveData?: boolean } };
-    if (reduced.matches || nav.connection?.saveData || !hardwareWebGL()) return;
+    if (reduced.matches || nav.connection?.saveData) return;
 
     let scene: EvidenceScene | null = null;
     let disposed = false;
@@ -76,6 +76,8 @@ export function SceneStage({ records }: { records: SceneRecords }) {
     };
 
     const boot = async () => {
+      // Probed on idle, not during hydration: creating a GL context can stall on a busy GPU process.
+      if (disposed || !hardwareWebGL()) return;
       try {
         const mod = await import("./scene/evidence-scene");
         if (disposed) return;
